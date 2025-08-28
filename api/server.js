@@ -6,18 +6,38 @@ const compression = require('compression');
 const morgan = require('morgan');
 require('dotenv').config();
 
+// Import database connection
+const databaseConnection = require('./src/config/database');
+
+// Import routes
+const authRoutes = require('./src/routes/auth');
+const buildingRoutes = require('./src/routes/building');
+
+// Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 5000;
+
+// Environment variables
 const NODE_ENV = process.env.NODE_ENV || 'development';
+const PORT = process.env.PORT || 5000;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 // ========================================
-// MIDDLEWARE SETUP
+// MIDDLEWARE CONFIGURATION
 // ========================================
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
 
-// CORS configuration (dynamic)
+// CORS configuration
 const corsOptions = {
   origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000'],
   credentials: true,
@@ -25,116 +45,180 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Rate limiting (only for API routes, not health check)
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
-app.use('/api', limiter); // Remove the trailing slash
+app.use('/api/', limiter); // Apply to all API routes
 
-// Body parsing middleware
+// Other middleware
+app.use(compression());
+app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Compression middleware
-app.use(compression());
+// ========================================
+// ROUTES
+// ========================================
 
-// Logging middleware
-if (NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
-}
-
-// ========================================
-// ROOT ENDPOINT
-// ========================================
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Welcome to Visitor Management System API',
-    version: '1.0.0',
-    status: 'active',
-    endpoints: {
-      root: '/',
-      health: '/health',
-      api: '/api',
-      docs: '/api/docs'
-    }
-  });
-});
-
-// ========================================
-// HEALTH CHECK ENDPOINT
-// ========================================
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
-    status: 'OK',
-    message: 'Visitor Management System API is running',
+    success: true,
+    message: 'Server is healthy',
     timestamp: new Date().toISOString(),
     environment: NODE_ENV,
-    version: '1.0.0'
+    uptime: process.uptime()
   });
 });
 
-// ========================================
-// API ROUTES (Placeholder)
-// ========================================
+// Database health check endpoint
+app.get('/db-health', async (req, res) => {
+  try {
+    const dbStatus = await databaseConnection.healthCheck();
+    res.status(200).json({
+      success: true,
+      endpoint: '/db-health',
+      timestamp: new Date().toISOString(),
+      database: dbStatus
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      endpoint: '/db-health',
+      timestamp: new Date().toISOString(),
+      error: 'Database health check failed',
+      message: error.message
+    });
+  }
+});
+
+// API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/buildings', buildingRoutes);
+
+// API base endpoint
 app.get('/api', (req, res) => {
-  res.json({
+  res.status(200).json({
+    success: true,
     message: 'Visitor Management System API',
     version: '1.0.0',
-    status: 'active',
-    endpoints: {
-      health: '/health',
-      api: '/api',
-      docs: '/api/docs'
-    }
+    timestamp: new Date().toISOString(),
+          endpoints: {
+        health: `${BASE_URL}/health`,
+        database: `${BASE_URL}/db-health`,
+        authentication: `${BASE_URL}/api/auth`,
+        buildings: `${BASE_URL}/api/buildings`,
+        documentation: `${BASE_URL}/api/docs`
+      },
+    environment: NODE_ENV
   });
 });
 
-// ========================================
-// 404 HANDLER
-// ========================================
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    message: `Cannot ${req.method} ${req.originalUrl}`,
-    availableEndpoints: ['/', '/health', '/api']
+// Root endpoint
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: '🚀 Visitor Management System API',
+    description: 'Secure, scalable visitor management with 4-tier role system',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    status: 'Running',
+    environment: NODE_ENV,
+          quickStart: {
+        health: `${BASE_URL}/health`,
+        api: `${BASE_URL}/api`,
+        auth: `${BASE_URL}/api/auth`,
+        buildings: `${BASE_URL}/api/buildings`
+      },
+    features: [
+      '4-Tier Role System (Super Admin → Building Admin → Security → Resident)',
+      'OTP-based Authentication',
+      'Multi-building Support',
+      'Real-time Notifications',
+      'QR Code Visitor Management',
+      'Photo Verification System'
+    ]
   });
 });
 
 // ========================================
 // ERROR HANDLING MIDDLEWARE
 // ========================================
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+    requestedUrl: req.originalUrl,
+          availableEndpoints: {
+        root: '/',
+        health: '/health',
+        database: '/db-health',
+        api: '/api',
+        auth: '/api/auth',
+        buildings: '/api/buildings'
+      }
+  });
+});
+
+// Global error handler
+app.use((error, req, res, next) => {
+  console.error('Global error handler:', error);
   
-  const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
-  
-  res.status(statusCode).json({
-    error: {
-      message: message,
-      status: statusCode,
-      timestamp: new Date().toISOString()
-    }
+  res.status(error.status || 500).json({
+    success: false,
+    message: error.message || 'Internal server error',
+    ...(NODE_ENV === 'development' && { stack: error.stack })
   });
 });
 
 // ========================================
-// START SERVER
+// START SERVER WITH DATABASE CONNECTION
 // ========================================
-app.listen(PORT, () => {
-  const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
-  
-  console.log('🚀 Visitor Management System API');
-  console.log('================================');
-  console.log(`🌍 Environment: ${NODE_ENV}`);
-  console.log(`🔌 Port: ${PORT}`);
-  console.log(`🔗 Health Check: ${baseUrl}/health`);
-  console.log(`📚 API Base: ${baseUrl}/api`);
-  console.log(`🌐 Base URL: ${baseUrl}`);
-  console.log('================================');
-  console.log('✅ Server is running successfully!');
-});
+
+async function startServer() {
+  try {
+    // Connect to MongoDB Atlas
+    await databaseConnection.connect();
+
+    // Start Express server
+    app.listen(PORT, () => {
+      const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
+
+      console.log('🚀 Visitor Management System API');
+      console.log('================================');
+      console.log(`🌍 Environment: ${NODE_ENV}`);
+      console.log(`🔌 Port: ${PORT}`);
+      console.log(`🔗 Health Check: ${baseUrl}/health`);
+      console.log(`📊 Database Health: ${baseUrl}/db-health`);
+      console.log(`🔐 Authentication: ${baseUrl}/api/auth`);
+      console.log(`🏢 Buildings: ${baseUrl}/api/buildings`);
+      console.log(`📚 API Base: ${baseUrl}/api`);
+      console.log(`🌐 Base URL: ${baseUrl}`);
+      console.log('================================');
+      console.log('✅ Server is running successfully!');
+      console.log('✅ MongoDB Atlas connected successfully!');
+      console.log('✅ Authentication system ready!');
+      console.log('✅ Building management system ready!');
+      console.log('✅ 4-Tier role system active!');
+      console.log('================================');
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start server:', error.message);
+    console.error('💡 Please check your MongoDB Atlas connection string in .env file');
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();

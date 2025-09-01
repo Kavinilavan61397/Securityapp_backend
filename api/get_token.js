@@ -1,6 +1,8 @@
 const axios = require('axios');
+require('dotenv').config();
 
-const BASE_URL = 'http://localhost:5000';
+// 100% Dynamic - No hardcoded values
+const BASE_URL = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
 const API_BASE = `${BASE_URL}/api`;
 
 async function getToken() {

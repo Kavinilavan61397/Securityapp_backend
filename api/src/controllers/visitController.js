@@ -1,0 +1,813 @@
+const Visit = require('../models/Visit');
+const Visitor = require('../models/Visitor');
+const User = require('../models/User');
+const Building = require('../models/Building');
+const Notification = require('../models/Notification');
+const { validationResult } = require('express-validator');
+const crypto = require('crypto');
+
+class VisitController {
+  /**
+   * Create a new visit
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async createVisit(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const { buildingId } = req.params;
+      const {
+        visitorId,
+        hostId,
+        hostFlatNumber,
+        purpose,
+        visitType = 'WALK_IN',
+        scheduledDate,
+        scheduledTime,
+        expectedDuration,
+        vehicleNumber,
+        vehicleType = 'OTHER'
+      } = req.body;
+
+      // Validate building exists
+      const building = await Building.findById(buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Validate visitor exists and belongs to building
+      const visitor = await Visitor.findById(visitorId);
+      if (!visitor || visitor.buildingId.toString() !== buildingId) {
+        return res.status(404).json({
+          success: false,
+          message: 'Visitor not found or does not belong to this building'
+        });
+      }
+
+      // Validate host exists and belongs to building
+      const host = await User.findById(hostId);
+      if (!host || host.buildingId.toString() !== buildingId) {
+        return res.status(404).json({
+          success: false,
+          message: 'Host not found or does not belong to this building'
+        });
+      }
+
+      // Generate unique visit ID
+      const visitId = `VISIT_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+
+      // Generate QR code data
+      const qrData = {
+        visitId,
+        visitorId: visitor._id.toString(),
+        visitorName: visitor.name,
+        buildingId,
+        timestamp: Date.now()
+      };
+
+      // Generate QR code (encrypted)
+      const qrCode = crypto.createHash('sha256')
+        .update(JSON.stringify(qrData))
+        .digest('hex');
+
+      // Set QR code expiration (24 hours from now)
+      const qrCodeExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      // Create visit
+      const visit = new Visit({
+        visitId,
+        visitorId,
+        buildingId,
+        hostId,
+        hostFlatNumber,
+        purpose,
+        visitType,
+        approvalStatus: visitType === 'PRE_APPROVED' ? 'APPROVED' : 'PENDING',
+        scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
+        scheduledTime,
+        expectedDuration,
+        qrCode,
+        qrCodeExpiresAt,
+        vehicleNumber,
+        vehicleType,
+        status: visitType === 'PRE_APPROVED' ? 'SCHEDULED' : 'SCHEDULED'
+      });
+
+      await visit.save();
+
+      // Update visitor's visit count
+      await Visitor.findByIdAndUpdate(visitorId, {
+        $inc: { totalVisits: 1 },
+        lastVisitAt: new Date()
+      });
+
+      // Create notification for host
+      if (visitType !== 'PRE_APPROVED') {
+        await Notification.create({
+          notificationId: `NOTIF_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+          recipientId: hostId,
+          recipientRole: host.role,
+          buildingId,
+          title: 'New Visit Request',
+          message: `${visitor.name} has requested to visit you`,
+          type: 'VISIT_APPROVAL_REQUEST',
+          category: 'INFO',
+          priority: 'MEDIUM',
+          relatedVisitId: visit._id,
+          relatedVisitorId: visitorId,
+          actionRequired: true,
+          actionType: 'APPROVE',
+          deliveryChannels: { inApp: true, email: true, sms: false }
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Visit created successfully',
+        data: {
+          visit: await visit.populate([
+            { path: 'visitorId', select: 'name phoneNumber email' },
+            { path: 'hostId', select: 'name phoneNumber email' }
+          ])
+        }
+      });
+
+    } catch (error) {
+      console.error('Create visit error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Get all visits for a building with filtering and pagination
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async getVisits(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const {
+        page = 1,
+        limit = 10,
+        status,
+        visitType,
+        approvalStatus,
+        startDate,
+        endDate,
+        hostId,
+        visitorId
+      } = req.query;
+
+      const skip = (page - 1) * limit;
+      const query = { buildingId };
+
+      // Apply filters
+      if (status) query.status = status;
+      if (visitType) query.visitType = visitType;
+      if (approvalStatus) query.approvalStatus = approvalStatus;
+      if (hostId) query.hostId = hostId;
+      if (visitorId) query.visitorId = visitorId;
+
+      // Date range filter
+      if (startDate || endDate) {
+        query.createdAt = {};
+        if (startDate) query.createdAt.$gte = new Date(startDate);
+        if (endDate) query.createdAt.$lte = new Date(endDate);
+      }
+
+      const visits = await Visit.find(query)
+        .populate([
+          { path: 'visitorId', select: 'name phoneNumber email photo' },
+          { path: 'hostId', select: 'name phoneNumber email' },
+          { path: 'approvedBy', select: 'name' },
+          { path: 'verifiedBySecurity', select: 'name' }
+        ])
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+      const totalVisits = await Visit.countDocuments(query);
+      const totalPages = Math.ceil(totalVisits / limit);
+
+      res.status(200).json({
+        success: true,
+        message: 'Visits retrieved successfully',
+        data: {
+          visits,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            totalVisits,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get visits error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Get visit by ID
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async getVisitById(req, res) {
+    try {
+      const { buildingId, visitId } = req.params;
+
+      const visit = await Visit.findOne({ _id: visitId, buildingId })
+        .populate([
+          { path: 'visitorId', select: 'name phoneNumber email photo idType idNumber' },
+          { path: 'hostId', select: 'name phoneNumber email flatNumber' },
+          { path: 'approvedBy', select: 'name' },
+          { path: 'verifiedBySecurity', select: 'name' },
+          { path: 'entryPhoto', select: 'url thumbnail' },
+          { path: 'exitPhoto', select: 'url thumbnail' }
+        ]);
+
+      if (!visit) {
+        return res.status(404).json({
+          success: false,
+          message: 'Visit not found'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Visit retrieved successfully',
+        data: { visit }
+      });
+
+    } catch (error) {
+      console.error('Get visit by ID error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Update visit (approve/reject/cancel)
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async updateVisit(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const { buildingId, visitId } = req.params;
+      const { approvalStatus, rejectionReason, securityNotes } = req.body;
+      const { userId, role } = req.user;
+
+      const visit = await Visit.findOne({ _id: visitId, buildingId })
+        .populate([
+          { path: 'visitorId', select: 'name phoneNumber email' },
+          { path: 'hostId', select: 'name phoneNumber email role' }
+        ]);
+
+      if (!visit) {
+        return res.status(404).json({
+          success: false,
+          message: 'Visit not found'
+        });
+      }
+
+      // Check permissions
+      if (role === 'SECURITY') {
+        // Security can only add notes and verify check-in/out
+        if (securityNotes) {
+          visit.securityNotes = securityNotes;
+          visit.verifiedBySecurity = userId;
+          visit.verifiedAt = new Date();
+        }
+      } else if (role === 'BUILDING_ADMIN' || role === 'SUPER_ADMIN') {
+        // Admin can approve/reject visits
+        if (approvalStatus) {
+          if (!['APPROVED', 'REJECTED', 'CANCELLED'].includes(approvalStatus)) {
+            return res.status(400).json({
+              success: false,
+              message: 'Invalid approval status'
+            });
+          }
+
+          visit.approvalStatus = approvalStatus;
+          visit.approvedBy = userId;
+          visit.approvedAt = new Date();
+
+          if (approvalStatus === 'REJECTED') {
+            visit.rejectionReason = rejectionReason;
+            visit.status = 'CANCELLED';
+          } else if (approvalStatus === 'APPROVED') {
+            visit.status = 'SCHEDULED';
+          } else if (approvalStatus === 'CANCELLED') {
+            visit.status = 'CANCELLED';
+          }
+        }
+      }
+
+      await visit.save();
+
+      // Create notifications
+      if (approvalStatus) {
+        const notificationData = {
+          notificationId: `NOTIF_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+          buildingId,
+          relatedVisitId: visit._id,
+          relatedVisitorId: visit.visitorId._id,
+          deliveryChannels: { inApp: true, email: true, sms: false }
+        };
+
+        if (approvalStatus === 'APPROVED') {
+          // Notify host only (visitors don't have accounts for in-app notifications)
+          await Notification.create({
+            ...notificationData,
+            recipientId: visit.hostId._id,
+            recipientRole: visit.hostId.role,
+            title: 'Visit Approved',
+            message: `${visit.visitorId.name}'s visit has been approved`,
+            type: 'VISIT_APPROVED',
+            category: 'SUCCESS',
+            priority: 'MEDIUM'
+          });
+        } else if (approvalStatus === 'REJECTED') {
+          // Notify host only (visitors don't have accounts for in-app notifications)
+          await Notification.create({
+            ...notificationData,
+            recipientId: visit.hostId._id,
+            recipientRole: visit.hostId.role,
+            title: 'Visit Rejected',
+            message: `${visit.visitorId.name}'s visit has been rejected`,
+            type: 'VISIT_REJECTED',
+            category: 'WARNING',
+            priority: 'HIGH',
+            metadata: { rejectionReason }
+          });
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Visit updated successfully',
+        data: { visit }
+      });
+
+    } catch (error) {
+      console.error('Update visit error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Check-in visitor
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async checkIn(req, res) {
+    try {
+      const { buildingId, visitId } = req.params;
+      const { qrCode, entryPhotoId, securityNotes } = req.body;
+      const { userId, role } = req.user;
+
+      // Only security can perform check-in
+      if (role !== 'SECURITY') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only security personnel can perform check-in'
+        });
+      }
+
+      const visit = await Visit.findOne({ _id: visitId, buildingId })
+        .populate([
+          { path: 'visitorId', select: 'name phoneNumber email' },
+          { path: 'hostId', select: 'name phoneNumber email role' }
+        ]);
+
+      if (!visit) {
+        return res.status(404).json({
+          success: false,
+          message: 'Visit not found'
+        });
+      }
+
+      // Verify QR code
+      if (visit.qrCode !== qrCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid QR code'
+        });
+      }
+
+      // Check if QR code is expired
+      if (new Date() > visit.qrCodeExpiresAt) {
+        return res.status(400).json({
+          success: false,
+          message: 'QR code has expired'
+        });
+      }
+
+      // Check if visit is already checked in
+      if (visit.checkInTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Visit is already checked in'
+        });
+      }
+
+      // Check if visit is approved
+      if (visit.approvalStatus !== 'APPROVED') {
+        return res.status(400).json({
+          success: false,
+          message: 'Visit must be approved before check-in'
+        });
+      }
+
+      // Update visit
+      visit.checkInTime = new Date();
+      visit.status = 'IN_PROGRESS';
+      visit.verifiedBySecurity = userId;
+      visit.verifiedAt = new Date();
+      visit.entryPhoto = entryPhotoId;
+      if (securityNotes) {
+        visit.securityNotes = securityNotes;
+      }
+
+      await visit.save();
+
+      // Create notifications
+      const notificationData = {
+        notificationId: `NOTIF_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+        buildingId,
+        relatedVisitId: visit._id,
+        relatedVisitorId: visit.visitorId._id,
+        deliveryChannels: { inApp: true, email: true, sms: true }
+      };
+
+      // Notify host
+      await Notification.create({
+        ...notificationData,
+        recipientId: visit.hostId._id,
+        recipientRole: visit.hostId.role,
+        title: 'Visitor Checked In',
+        message: `${visit.visitorId.name} has checked in`,
+        type: 'VISITOR_ARRIVAL',
+        category: 'INFO',
+        priority: 'MEDIUM'
+      });
+
+      // Notify building admin
+      const buildingAdmin = await User.findOne({ buildingId, role: 'BUILDING_ADMIN' });
+      if (buildingAdmin) {
+        await Notification.create({
+          ...notificationData,
+          recipientId: buildingAdmin._id,
+          recipientRole: 'BUILDING_ADMIN',
+          title: 'Visitor Checked In',
+          message: `${visit.visitorId.name} has checked in to ${visit.hostId.name}`,
+          type: 'VISITOR_ARRIVAL',
+          category: 'INFO',
+          priority: 'LOW'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Visitor checked in successfully',
+        data: { visit }
+      });
+
+    } catch (error) {
+      console.error('Check-in error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Check-out visitor
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async checkOut(req, res) {
+    try {
+      const { buildingId, visitId } = req.params;
+      const { exitPhotoId, securityNotes } = req.body;
+      const { userId, role } = req.user;
+
+      // Only security can perform check-out
+      if (role !== 'SECURITY') {
+        return res.status(403).json({
+          success: false,
+          message: 'Only security personnel can perform check-out'
+        });
+      }
+
+      const visit = await Visit.findOne({ _id: visitId, buildingId })
+        .populate([
+          { path: 'visitorId', select: 'name phoneNumber email' },
+          { path: 'hostId', select: 'name phoneNumber email role' }
+        ]);
+
+      if (!visit) {
+        return res.status(404).json({
+          success: false,
+          message: 'Visit not found'
+        });
+      }
+
+      // Check if visit is checked in
+      if (!visit.checkInTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Visit must be checked in before check-out'
+        });
+      }
+
+      // Check if visit is already checked out
+      if (visit.checkOutTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Visit is already checked out'
+        });
+      }
+
+      // Update visit
+      visit.checkOutTime = new Date();
+      visit.status = 'COMPLETED';
+      visit.exitPhoto = exitPhotoId;
+      visit.actualDuration = Math.round((visit.checkOutTime - visit.checkInTime) / (1000 * 60)); // Duration in minutes
+      if (securityNotes) {
+        visit.securityNotes = visit.securityNotes ? 
+          `${visit.securityNotes}\n${securityNotes}` : securityNotes;
+      }
+
+      await visit.save();
+
+      // Create notifications
+      const notificationData = {
+        notificationId: `NOTIF_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+        buildingId,
+        relatedVisitId: visit._id,
+        relatedVisitorId: visit.visitorId._id,
+        deliveryChannels: { inApp: true, email: true, sms: false }
+      };
+
+      // Notify host
+      await Notification.create({
+        ...notificationData,
+        recipientId: visit.hostId._id,
+        recipientRole: visit.hostId.role,
+        title: 'Visitor Checked Out',
+        message: `${visit.visitorId.name} has checked out`,
+        type: 'VISITOR_DEPARTURE',
+        category: 'INFO',
+        priority: 'MEDIUM'
+      });
+
+      // Notify building admin
+      const buildingAdmin = await User.findOne({ buildingId, role: 'BUILDING_ADMIN' });
+      if (buildingAdmin) {
+        await Notification.create({
+          ...notificationData,
+          recipientId: buildingAdmin._id,
+          recipientRole: 'BUILDING_ADMIN',
+          title: 'Visitor Checked Out',
+          message: `${visit.visitorId.name} has checked out from ${visit.hostId.name}`,
+          type: 'VISITOR_DEPARTURE',
+          category: 'INFO',
+          priority: 'LOW'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Visitor checked out successfully',
+        data: { visit }
+      });
+
+    } catch (error) {
+      console.error('Check-out error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Get visit statistics for a building
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async getVisitStats(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const { startDate, endDate } = req.query;
+
+      const dateFilter = {};
+      if (startDate || endDate) {
+        dateFilter.createdAt = {};
+        if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
+        if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+      }
+
+      const baseQuery = { buildingId, ...dateFilter };
+
+      // Get total visits
+      const totalVisits = await Visit.countDocuments(baseQuery);
+
+      // Get visits by status
+      const visitsByStatus = await Visit.aggregate([
+        { $match: baseQuery },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]);
+
+      // Get visits by type
+      const visitsByType = await Visit.aggregate([
+        { $match: baseQuery },
+        { $group: { _id: '$visitType', count: { $sum: 1 } } }
+      ]);
+
+      // Get visits by approval status
+      const visitsByApproval = await Visit.aggregate([
+        { $match: baseQuery },
+        { $group: { _id: '$approvalStatus', count: { $sum: 1 } } }
+      ]);
+
+      // Get today's visits
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const todayVisits = await Visit.countDocuments({
+        ...baseQuery,
+        createdAt: { $gte: today, $lt: tomorrow }
+      });
+
+      // Get average visit duration
+      const avgDuration = await Visit.aggregate([
+        { $match: { ...baseQuery, actualDuration: { $exists: true, $ne: null } } },
+        { $group: { _id: null, avgDuration: { $avg: '$actualDuration' } } }
+      ]);
+
+      // Get recent visits (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const recentVisits = await Visit.countDocuments({
+        ...baseQuery,
+        createdAt: { $gte: sevenDaysAgo }
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Visit statistics retrieved successfully',
+        data: {
+          totalVisits,
+          todayVisits,
+          recentVisits,
+          avgDuration: avgDuration.length > 0 ? Math.round(avgDuration[0].avgDuration) : 0,
+          visitsByStatus: visitsByStatus.reduce((acc, item) => {
+            acc[item._id] = item.count;
+            return acc;
+          }, {}),
+          visitsByType: visitsByType.reduce((acc, item) => {
+            acc[item._id] = item.count;
+            return acc;
+          }, {}),
+          visitsByApproval: visitsByApproval.reduce((acc, item) => {
+            acc[item._id] = item.count;
+            return acc;
+          }, {})
+        }
+      });
+
+    } catch (error) {
+      console.error('Get visit stats error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Search visits
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async searchVisits(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const {
+        query,
+        page = 1,
+        limit = 10,
+        status,
+        visitType,
+        startDate,
+        endDate
+      } = req.query;
+
+      const skip = (page - 1) * limit;
+      const searchQuery = { buildingId };
+
+      // Apply filters
+      if (status) searchQuery.status = status;
+      if (visitType) searchQuery.visitType = visitType;
+      if (startDate || endDate) {
+        searchQuery.createdAt = {};
+        if (startDate) searchQuery.createdAt.$gte = new Date(startDate);
+        if (endDate) searchQuery.createdAt.$lte = new Date(endDate);
+      }
+
+      // Text search
+      if (query) {
+        searchQuery.$or = [
+          { visitId: { $regex: query, $options: 'i' } },
+          { purpose: { $regex: query, $options: 'i' } },
+          { hostFlatNumber: { $regex: query, $options: 'i' } },
+          { vehicleNumber: { $regex: query, $options: 'i' } }
+        ];
+      }
+
+      const visits = await Visit.find(searchQuery)
+        .populate([
+          { path: 'visitorId', select: 'name phoneNumber email' },
+          { path: 'hostId', select: 'name phoneNumber email' }
+        ])
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+      const totalVisits = await Visit.countDocuments(searchQuery);
+      const totalPages = Math.ceil(totalVisits / limit);
+
+      res.status(200).json({
+        success: true,
+        message: 'Visits search completed successfully',
+        data: {
+          visits,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            totalVisits,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Search visits error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+}
+
+module.exports = VisitController;

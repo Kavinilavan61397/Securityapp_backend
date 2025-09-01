@@ -12,6 +12,8 @@ const databaseConnection = require('./src/config/database');
 // Import routes
 const authRoutes = require('./src/routes/auth');
 const buildingRoutes = require('./src/routes/building');
+const visitorRoutes = require('./src/routes/visitor');
+const visitRoutes = require('./src/routes/visit'); // Restored original to fix
 
 // Initialize Express app
 const app = express();
@@ -103,6 +105,8 @@ app.get('/db-health', async (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/buildings', buildingRoutes);
+app.use('/api/visitors', visitorRoutes);
+app.use('/api/visits', visitRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {
@@ -116,6 +120,8 @@ app.get('/api', (req, res) => {
         database: `${BASE_URL}/db-health`,
         authentication: `${BASE_URL}/api/auth`,
         buildings: `${BASE_URL}/api/buildings`,
+        visitors: `${BASE_URL}/api/visitors`,
+        visits: `${BASE_URL}/api/visits`,
         documentation: `${BASE_URL}/api/docs`
       },
     environment: NODE_ENV
@@ -136,7 +142,9 @@ app.get('/', (req, res) => {
         health: `${BASE_URL}/health`,
         api: `${BASE_URL}/api`,
         auth: `${BASE_URL}/api/auth`,
-        buildings: `${BASE_URL}/api/buildings`
+        buildings: `${BASE_URL}/api/buildings`,
+        visitors: `${BASE_URL}/api/visitors`,
+        visits: `${BASE_URL}/api/visits`
       },
     features: [
       '4-Tier Role System (Super Admin → Building Admin → Security → Resident)',
@@ -165,7 +173,9 @@ app.use('*', (req, res) => {
         database: '/db-health',
         api: '/api',
         auth: '/api/auth',
-        buildings: '/api/buildings'
+        buildings: '/api/buildings',
+        visitors: '/api/visitors',
+        visits: '/api/visits'
       }
   });
 });

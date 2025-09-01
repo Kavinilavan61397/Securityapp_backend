@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const axios = require('axios');
 
 /**
@@ -5,7 +7,7 @@ const axios = require('axios');
  * Tests all Super Admin capabilities systematically
  */
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
 const API_BASE = `${BASE_URL}/api`;
 
 // Test data

@@ -1,0 +1,263 @@
+const express = require('express');
+const { body, param, query } = require('express-validator');
+const VisitorController = require('../controllers/visitorController');
+const { authenticateToken, authorizeRoles, buildingAccess } = require('../middleware/auth');
+
+const router = express.Router();
+
+
+
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
+
+// Validation middleware
+const validateVisitorCreation = [
+  body('name')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters'),
+  
+  body('phoneNumber')
+    .matches(/^[+]?[\d\s\-\(\)]+$/)
+    .withMessage('Please enter a valid phone number'),
+  
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please enter a valid email'),
+  
+  body('idType')
+    .isIn(['AADHAR', 'PAN', 'DRIVING_LICENSE', 'PASSPORT', 'VOTER_ID', 'OTHER'])
+    .withMessage('Invalid ID type'),
+  
+  body('idNumber')
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage('ID number is required'),
+  
+  body('purpose')
+    .trim()
+    .isLength({ min: 5, max: 200 })
+    .withMessage('Purpose must be between 5 and 200 characters'),
+  
+  body('company')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Company name cannot exceed 100 characters'),
+  
+  body('vehicleNumber')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Vehicle number cannot exceed 20 characters'),
+  
+  body('emergencyContact.name')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Emergency contact name cannot exceed 100 characters'),
+  
+  body('emergencyContact.phone')
+    .optional()
+    .matches(/^[+]?[\d\s\-\(\)]+$/)
+    .withMessage('Please enter a valid emergency contact phone number'),
+  
+  body('emergencyContact.relationship')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Relationship cannot exceed 50 characters')
+];
+
+const validateVisitorUpdate = [
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters'),
+  
+  body('phoneNumber')
+    .optional()
+    .matches(/^[+]?[\d\s\-\(\)]+$/)
+    .withMessage('Please enter a valid phone number'),
+  
+  body('email')
+    .optional()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please enter a valid email'),
+  
+  body('idType')
+    .optional()
+    .isIn(['AADHAR', 'PAN', 'DRIVING_LICENSE', 'PASSPORT', 'VOTER_ID', 'OTHER'])
+    .withMessage('Invalid ID type'),
+  
+  body('idNumber')
+    .optional()
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage('ID number is required'),
+  
+  body('purpose')
+    .optional()
+    .trim()
+    .isLength({ min: 5, max: 200 })
+    .withMessage('Purpose must be between 5 and 200 characters'),
+  
+  body('company')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Company name cannot exceed 100 characters'),
+  
+  body('vehicleNumber')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Vehicle number cannot exceed 20 characters'),
+  
+  body('emergencyContact.name')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Emergency contact name cannot exceed 100 characters'),
+  
+  body('emergencyContact.phone')
+    .optional()
+    .matches(/^[+]?[\d\s\-\(\)]+$/)
+    .withMessage('Please enter a valid emergency contact phone number'),
+  
+  body('emergencyContact.relationship')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Relationship cannot exceed 50 characters')
+];
+
+const validateParams = [
+  param('buildingId')
+    .isMongoId()
+    .withMessage('Valid building ID is required'),
+  
+  param('visitorId')
+    .optional()
+    .isMongoId()
+    .withMessage('Valid visitor ID is required')
+];
+
+const validateQuery = [
+  query('page')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer'),
+  
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100'),
+  
+  query('search')
+    .optional()
+    .trim()
+    .isLength({ min: 2 })
+    .withMessage('Search query must be at least 2 characters'),
+  
+  query('status')
+    .optional()
+    .isIn(['Active', 'Inactive', 'Blacklisted'])
+    .withMessage('Invalid status value'),
+  
+  query('isBlacklisted')
+    .optional()
+    .isIn(['true', 'false'])
+    .withMessage('isBlacklisted must be true or false'),
+  
+  query('sortBy')
+    .optional()
+    .isIn(['name', 'createdAt', 'totalVisits', 'lastVisitAt'])
+    .withMessage('Invalid sort field'),
+  
+  query('sortOrder')
+    .optional()
+    .isIn(['asc', 'desc'])
+    .withMessage('Sort order must be asc or desc'),
+  
+  query('query')
+    .optional()
+    .trim()
+    .isLength({ min: 2 })
+    .withMessage('Search query must be at least 2 characters'),
+  
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('Limit must be between 1 and 50'),
+  
+  query('startDate')
+    .optional()
+    .isISO8601()
+    .withMessage('Start date must be a valid ISO date'),
+  
+  query('endDate')
+    .optional()
+    .isISO8601()
+    .withMessage('End date must be a valid ISO date')
+];
+
+// Routes
+
+// POST /api/visitors/:buildingId - Create a new visitor
+router.post('/:buildingId',
+  validateParams,
+  validateVisitorCreation,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  VisitorController.createVisitor
+);
+
+// GET /api/visitors/:buildingId/stats - Get visitor statistics (MUST come before :buildingId route)
+router.get('/:buildingId/stats',
+  validateParams,
+  validateQuery,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  VisitorController.getVisitorStats
+);
+
+// GET /api/visitors/:buildingId/search - Search visitors (MUST come before :buildingId route)
+router.get('/:buildingId/search',
+  validateParams,
+  validateQuery,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  VisitorController.searchVisitors
+);
+
+// GET /api/visitors/:buildingId - Get all visitors for a building (MUST come LAST)
+router.get('/:buildingId',
+  validateParams,
+  validateQuery,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  VisitorController.getVisitors
+);
+
+// GET /api/visitors/:buildingId/:visitorId - Get visitor by ID (MUST come after search route)
+router.get('/:buildingId/:visitorId',
+  validateParams,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  VisitorController.getVisitorById
+);
+
+// PUT /api/visitors/:buildingId/:visitorId - Update visitor
+router.put('/:buildingId/:visitorId',
+  validateParams,
+  validateVisitorUpdate,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  VisitorController.updateVisitor
+);
+
+module.exports = router;

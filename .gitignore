@@ -4,6 +4,7 @@
 
 # Development conversation log (private)
 chat.txt
+chat_complete.txt
 
 # Environment files
 .env

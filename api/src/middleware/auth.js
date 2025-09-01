@@ -29,8 +29,12 @@ const authenticateToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Check if user still exists and is active
+    console.log('Finding user in database...');
+    
     const user = await User.findById(decoded.userId).select('-otp');
+    
     if (!user) {
+      console.log('User not found');
       return res.status(401).json({
         success: false,
         message: 'User not found'
@@ -93,7 +97,12 @@ const authenticateToken = async (req, res, next) => {
 const authorizeRoles = (allowedRoles) => {
   return (req, res, next) => {
     try {
+      console.log('=== authorizeRoles middleware started ===');
+      console.log('User role:', req.user.role);
+      console.log('Allowed roles:', allowedRoles);
+      
       if (!req.user) {
+        console.log('No user found');
         return res.status(401).json({
           success: false,
           message: 'Authentication required'
@@ -101,12 +110,14 @@ const authorizeRoles = (allowedRoles) => {
       }
 
       if (!allowedRoles.includes(req.user.role)) {
+        console.log('Access denied - role not allowed');
         return res.status(403).json({
           success: false,
           message: 'Access denied. Insufficient permissions.'
         });
       }
 
+      console.log('Role authorized successfully');
       next();
 
     } catch (error) {
@@ -167,8 +178,7 @@ const requirePermission = (permission) => {
  * Ensures user can only access their assigned building
  * @returns {Function} Middleware function
  */
-const buildingAccess = () => {
-  return async (req, res, next) => {
+const buildingAccess = async (req, res, next) => {
     try {
       if (!req.user) {
         return res.status(401).json({
@@ -192,10 +202,19 @@ const buildingAccess = () => {
         });
       }
 
+      // Check if user has a buildingId assigned and if it matches the requested building
       if (req.user.buildingId && req.user.buildingId.toString() !== buildingId.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Access denied. You can only access your assigned building.'
+        });
+      }
+
+      // If user doesn't have a buildingId but is not a Super Admin, deny access
+      if (!req.user.buildingId && req.user.role !== 'SUPER_ADMIN') {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You must be assigned to a building.'
         });
       }
 
@@ -209,7 +228,6 @@ const buildingAccess = () => {
       });
     }
   };
-};
 
 /**
  * Account Verification Check

@@ -13,7 +13,10 @@ const databaseConnection = require('./src/config/database');
 const authRoutes = require('./src/routes/auth');
 const buildingRoutes = require('./src/routes/building');
 const visitorRoutes = require('./src/routes/visitor');
-const visitRoutes = require('./src/routes/visit'); // Restored original to fix
+const visitRoutes = require('./src/routes/visit');
+const notificationRoutes = require('./src/routes/notification');
+const photoRoutes = require('./src/routes/photo');
+const analyticsRoutes = require('./src/routes/analytics');
 
 // Initialize Express app
 const app = express();
@@ -107,6 +110,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/buildings', buildingRoutes);
 app.use('/api/visitors', visitorRoutes);
 app.use('/api/visits', visitRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/photos', photoRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {
@@ -122,6 +128,9 @@ app.get('/api', (req, res) => {
         buildings: `${BASE_URL}/api/buildings`,
         visitors: `${BASE_URL}/api/visitors`,
         visits: `${BASE_URL}/api/visits`,
+        notifications: `${BASE_URL}/api/notifications`,
+        photos: `${BASE_URL}/api/photos`,
+        analytics: `${BASE_URL}/api/analytics`,
         documentation: `${BASE_URL}/api/docs`
       },
     environment: NODE_ENV
@@ -144,7 +153,10 @@ app.get('/', (req, res) => {
         auth: `${BASE_URL}/api/auth`,
         buildings: `${BASE_URL}/api/buildings`,
         visitors: `${BASE_URL}/api/visitors`,
-        visits: `${BASE_URL}/api/visits`
+        visits: `${BASE_URL}/api/visits`,
+        notifications: `${BASE_URL}/api/notifications`,
+        photos: `${BASE_URL}/api/photos`,
+        analytics: `${BASE_URL}/api/analytics`
       },
     features: [
       '4-Tier Role System (Super Admin → Building Admin → Security → Resident)',
@@ -175,7 +187,10 @@ app.use('*', (req, res) => {
         auth: '/api/auth',
         buildings: '/api/buildings',
         visitors: '/api/visitors',
-        visits: '/api/visits'
+        visits: '/api/visits',
+        notifications: '/api/notifications',
+        photos: '/api/photos',
+        analytics: '/api/analytics'
       }
   });
 });

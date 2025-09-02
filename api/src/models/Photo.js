@@ -1,8 +1,14 @@
 const mongoose = require('mongoose');
-const { GridFSBucket } = require('mongodb');
 
 const photoSchema = new mongoose.Schema({
   // Photo Identification
+  photoId: {
+    type: String,
+    required: [true, 'Photo ID is required'],
+    unique: true,
+    trim: true
+  },
+  
   filename: {
     type: String,
     required: [true, 'Filename is required'],
@@ -16,9 +22,9 @@ const photoSchema = new mongoose.Schema({
     trim: true
   },
   
-  contentType: {
+  mimeType: {
     type: String,
-    required: [true, 'Content type is required'],
+    required: [true, 'MIME type is required'],
     default: 'image/jpeg'
   },
   
@@ -29,10 +35,11 @@ const photoSchema = new mongoose.Schema({
     max: [10485760, 'File size cannot exceed 10MB'] // 10MB limit
   },
   
-  // GridFS References
-  fileId: {
+  // Upload Information
+  uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    required: [true, 'GridFS file ID is required']
+    ref: 'User',
+    required: [true, 'Uploader ID is required']
   },
   
   // Photo Metadata
@@ -49,35 +56,29 @@ const photoSchema = new mongoose.Schema({
   },
   
   // Photo Type and Usage
-  photoType: {
+  relatedType: {
     type: String,
-    required: [true, 'Photo type is required'],
+    required: [true, 'Related type is required'],
     enum: [
-      'VISITOR_PROFILE',
-      'VISITOR_ENTRY',
-      'VISITOR_EXIT',
-      'USER_PROFILE',
-      'BUILDING_IMAGE',
-      'DOCUMENT_VERIFICATION',
+      'VISITOR',
+      'VISIT',
+      'USER',
+      'BUILDING',
       'OTHER'
     ],
     default: 'OTHER'
   },
   
   // Associated Entities
-  visitorId: {
+  relatedId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Visitor'
+    required: [true, 'Related ID is required']
   },
   
-  visitId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Visit'
-  },
-  
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+  description: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Description cannot exceed 500 characters']
   },
   
   buildingId: {
@@ -168,26 +169,20 @@ const photoSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-photoSchema.index({ buildingId: 1, photoType: 1 });
-photoSchema.index({ visitorId: 1, photoType: 1 });
-photoSchema.index({ visitId: 1, photoType: 1 });
-photoSchema.index({ userId: 1, photoType: 1 });
-photoSchema.index({ fileId: 1 });
-photoSchema.index({ isProcessed: 1, processingStatus: 1 });
+photoSchema.index({ buildingId: 1, relatedType: 1 });
+photoSchema.index({ relatedId: 1, relatedType: 1 });
+photoSchema.index({ uploadedBy: 1 });
 photoSchema.index({ createdAt: -1 });
-photoSchema.index({ accessLevel: 1, buildingId: 1 });
+photoSchema.index({ isPublic: 1, buildingId: 1 });
+photoSchema.index({ photoId: 1 });
 
 // Virtuals
 photoSchema.virtual('url').get(function() {
-  return `/api/photos/${this.fileId}`;
+  return `/api/photos/${this.buildingId}/${this._id}`;
 });
 
-photoSchema.virtual('thumbnailUrl').get(function() {
-  return this.thumbnailId ? `/api/photos/${this.thumbnailId}` : null;
-});
-
-photoSchema.virtual('mediumUrl').get(function() {
-  return this.mediumId ? `/api/photos/${this.mediumId}` : null;
+photoSchema.virtual('streamUrl').get(function() {
+  return `/api/photos/${this.buildingId}/${this._id}/stream`;
 });
 
 photoSchema.virtual('dimensions').get(function() {
@@ -202,12 +197,7 @@ photoSchema.virtual('fileSizeMB').get(function() {
 });
 
 photoSchema.virtual('isImage').get(function() {
-  return this.contentType && this.contentType.startsWith('image/');
-});
-
-photoSchema.virtual('canAccess').get(function() {
-  // This will be implemented in middleware based on user role and permissions
-  return true;
+  return this.mimeType && this.mimeType.startsWith('image/');
 });
 
 // Instance methods
@@ -254,138 +244,29 @@ photoSchema.statics.findByBuilding = function(buildingId, options = {}) {
   return this.find(query).sort({ createdAt: -1 });
 };
 
-photoSchema.statics.findByVisitor = function(visitorId, buildingId) {
-  return this.find({ visitorId, buildingId, photoType: { $in: ['VISITOR_PROFILE', 'VISITOR_ENTRY', 'VISITOR_EXIT'] } })
+photoSchema.statics.findByRelated = function(relatedType, relatedId, buildingId) {
+  return this.find({ relatedType, relatedId, buildingId })
     .sort({ createdAt: -1 });
 };
 
-photoSchema.statics.findByVisit = function(visitId, buildingId) {
-  return this.find({ visitId, buildingId, photoType: { $in: ['VISITOR_ENTRY', 'VISITOR_EXIT'] } })
-    .sort({ createdAt: -1 });
-};
-
-photoSchema.statics.findByType = function(photoType, buildingId, options = {}) {
-  const query = { photoType, buildingId, ...options };
+photoSchema.statics.findByType = function(relatedType, buildingId, options = {}) {
+  const query = { relatedType, buildingId, ...options };
   return this.find(query).sort({ createdAt: -1 });
-};
-
-photoSchema.statics.findUnprocessed = function(buildingId) {
-  return this.find({
-    buildingId,
-    isProcessed: false,
-    processingStatus: { $in: ['PENDING', 'FAILED'] }
-  }).sort({ createdAt: 1 });
-};
-
-photoSchema.statics.getPhotoStats = function(buildingId, startDate, endDate) {
-  const matchStage = { buildingId: new mongoose.Types.ObjectId(buildingId) };
-  
-  if (startDate && endDate) {
-    matchStage.createdAt = {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate)
-    };
-  }
-  
-  return this.aggregate([
-    { $match: matchStage },
-    {
-      $group: {
-        _id: null,
-        totalPhotos: { $sum: 1 },
-        processedPhotos: { $sum: { $cond: [{ $eq: ['$isProcessed', true] }, 1, 0] } },
-        pendingPhotos: { $sum: { $cond: [{ $eq: ['$processingStatus', 'PENDING'] }, 1, 0] } },
-        failedPhotos: { $sum: { $cond: [{ $eq: ['$processingStatus', 'FAILED'] }, 1, 0] } },
-        totalSize: { $sum: '$size' },
-        averageSize: { $avg: '$size' }
-      }
-    }
-  ]);
-};
-
-photoSchema.statics.cleanupOrphaned = function() {
-  // This method will be implemented to clean up photos without associated entities
-  return this.deleteMany({
-    $or: [
-      { visitorId: { $exists: false } },
-      { visitId: { $exists: false } },
-      { userId: { $exists: false } }
-    ],
-    photoType: { $ne: 'BUILDING_IMAGE' }
-  });
 };
 
 // Pre-save middleware
 photoSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  
   // Validate file size
   if (this.size > 10485760) { // 10MB
     next(new Error('File size cannot exceed 10MB'));
   }
   
   // Validate content type
-  if (!this.contentType.startsWith('image/')) {
+  if (!this.mimeType.startsWith('image/')) {
     next(new Error('Only image files are allowed'));
   }
   
   next();
 });
-
-// Pre-save validation
-photoSchema.pre('save', function(next) {
-  if (this.photoType === 'VISITOR_PROFILE' && !this.visitorId) {
-    next(new Error('Visitor ID is required for visitor profile photos'));
-  }
-  
-  if (this.photoType === 'VISITOR_ENTRY' && !this.visitId) {
-    next(new Error('Visit ID is required for visitor entry photos'));
-  }
-  
-  if (this.photoType === 'VISITOR_EXIT' && !this.visitId) {
-    next(new Error('Visit ID is required for visitor exit photos'));
-  }
-  
-  next();
-});
-
-// GridFS utility methods
-photoSchema.statics.getGridFSBucket = function() {
-  return new GridFSBucket(mongoose.connection.db, {
-    bucketName: 'photos'
-  });
-};
-
-photoSchema.statics.uploadPhoto = function(file, metadata) {
-  const bucket = this.getGridFSBucket();
-  const uploadStream = bucket.openUploadStream(file.originalname, {
-    metadata: {
-      ...metadata,
-      uploadedAt: new Date()
-    }
-  });
-  
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    uploadStream.on('data', chunk => chunks.push(chunk));
-    uploadStream.on('error', reject);
-    uploadStream.on('finish', () => {
-      resolve(uploadStream.id);
-    });
-    
-    // Write file buffer to stream
-    uploadStream.end(file.buffer);
-  });
-};
-
-photoSchema.statics.downloadPhoto = function(fileId) {
-  const bucket = this.getGridFSBucket();
-  return bucket.openDownloadStream(fileId);
-};
-
-photoSchema.statics.deletePhoto = function(fileId) {
-  const bucket = this.getGridFSBucket();
-  return bucket.delete(fileId);
-};
 
 module.exports = mongoose.model('Photo', photoSchema);

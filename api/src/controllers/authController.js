@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
+const emailService = require('../services/emailService');
 
 /**
  * Authentication Controller
@@ -44,7 +45,20 @@ class AuthController {
         });
       }
 
-      const { name, email, phoneNumber, role, buildingId, employeeCode, flatNumber, tenantType, age, gender } = req.body;
+      const { name, email, phoneNumber, role, buildingId, employeeCode, flatNumber, tenantType, dateOfBirth, age, gender } = req.body;
+
+      // Convert dateOfBirth to proper Date object
+      let formattedDateOfBirth;
+      if (dateOfBirth) {
+        if (dateOfBirth.includes('/')) {
+          // Handle dd/mm/yyyy format from UI
+          const [day, month, year] = dateOfBirth.split('/');
+          formattedDateOfBirth = new Date(year, month - 1, day);
+        } else {
+          // Handle ISO8601 or yyyy-mm-dd format
+          formattedDateOfBirth = new Date(dateOfBirth);
+        }
+      }
 
       // Check if user already exists
       const existingUser = await User.findOne({
@@ -83,6 +97,7 @@ class AuthController {
         employeeCode,
         flatNumber,
         tenantType,
+        dateOfBirth: formattedDateOfBirth,
         age,
         gender,
         isVerified: role === 'SUPER_ADMIN' ? true : false // Super admins are auto-verified
@@ -94,16 +109,28 @@ class AuthController {
       const otpCode = user.generateOTP();
       await user.save();
 
-      // TODO: Send OTP via SMS/Email service
-      // For now, return OTP in response (remove in production)
+      // Send OTP via Email
+      const emailResult = await emailService.sendOTPEmail(
+        user.email,
+        otpCode,
+        user.name,
+        'registration'
+      );
+
+      // Log email result for debugging
+      if (!emailResult.success) {
+        console.error('Failed to send registration OTP email:', emailResult.error);
+      }
+
       res.status(201).json({
         success: true,
-        message: 'User registered successfully. OTP sent for verification.',
+        message: 'User registered successfully. OTP sent to your email for verification.',
         data: {
           userId: user._id,
           email: user.email,
           role: user.role,
           isVerified: user.isVerified,
+          emailSent: emailResult.success,
           otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined
         }
       });
@@ -157,15 +184,27 @@ class AuthController {
       const otpCode = user.generateOTP();
       await user.save();
 
-      // TODO: Send OTP via SMS/Email service
-      // For now, return OTP in response (remove in production)
+      // Send OTP via Email
+      const emailResult = await emailService.sendOTPEmail(
+        user.email,
+        otpCode,
+        user.name,
+        'login'
+      );
+
+      // Log email result for debugging
+      if (!emailResult.success) {
+        console.error('Failed to send login OTP email:', emailResult.error);
+      }
+
       res.status(200).json({
         success: true,
-        message: 'OTP sent for verification',
+        message: 'OTP sent to your email for verification',
         data: {
           userId: user._id,
           email: user.email,
           role: user.role,
+          emailSent: emailResult.success,
           otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined
         }
       });
@@ -214,9 +253,23 @@ class AuthController {
       }
 
       // Update user verification status if needed
+      const wasUnverified = !user.isVerified;
       if (!user.isVerified) {
         user.isVerified = true;
         await user.save();
+      }
+
+      // Send welcome email if this was the first verification
+      if (wasUnverified) {
+        const welcomeResult = await emailService.sendWelcomeEmail(
+          user.email,
+          user.name,
+          user.role
+        );
+        
+        if (!welcomeResult.success) {
+          console.error('Failed to send welcome email:', welcomeResult.error);
+        }
       }
 
       // Generate JWT token
@@ -282,13 +335,25 @@ class AuthController {
       const otpCode = user.generateOTP();
       await user.save();
 
-      // TODO: Send OTP via SMS/Email service
-      // For now, return OTP in response (remove in production)
+      // Send OTP via Email
+      const emailResult = await emailService.sendOTPEmail(
+        user.email,
+        otpCode,
+        user.name,
+        'verification'
+      );
+
+      // Log email result for debugging
+      if (!emailResult.success) {
+        console.error('Failed to send resend OTP email:', emailResult.error);
+      }
+
       res.status(200).json({
         success: true,
-        message: 'New OTP sent successfully',
+        message: 'New OTP sent to your email successfully',
         data: {
           userId: user._id,
+          emailSent: emailResult.success,
           otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined
         }
       });
@@ -406,6 +471,30 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Test Email Service
+   * POST /api/auth/test-email
+   */
+  async testEmailService(req, res) {
+    try {
+      const result = await emailService.testEmailService();
+      
+      res.status(result.success ? 200 : 500).json({
+        success: result.success,
+        message: result.message,
+        error: result.error
+      });
+
+    } catch (error) {
+      console.error('Email service test error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Email service test failed',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
       });
     }

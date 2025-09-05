@@ -31,7 +31,7 @@ const registerValidation = [
     .withMessage('Invalid role specified'),
   
   body('buildingId')
-    .if(body('role').isIn(['BUILDING_ADMIN', 'SECURITY', 'RESIDENT']))
+    .if(body('role').isIn(['BUILDING_ADMIN', 'SECURITY']))
     .isMongoId()
     .withMessage('Building ID is required and must be valid'),
   
@@ -50,15 +50,49 @@ const registerValidation = [
     .isIn(['OWNER', 'TENANT'])
     .withMessage('Tenant type must be either OWNER or TENANT'),
   
+  body('dateOfBirth')
+    .custom((value) => {
+      // Accept multiple date formats: dd/mm/yyyy, yyyy-mm-dd, ISO8601
+      const formats = [
+        /^\d{2}\/\d{2}\/\d{4}$/, // dd/mm/yyyy
+        /^\d{4}-\d{2}-\d{2}$/,   // yyyy-mm-dd
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ // ISO8601
+      ];
+      
+      const isValidFormat = formats.some(format => format.test(value));
+      if (!isValidFormat) {
+        throw new Error('Date of birth must be in dd/mm/yyyy, yyyy-mm-dd, or ISO8601 format');
+      }
+      
+      // Check if it's a valid date
+      let date;
+      if (value.includes('/')) {
+        // Handle dd/mm/yyyy format
+        const [day, month, year] = value.split('/');
+        date = new Date(year, month - 1, day);
+      } else {
+        date = new Date(value);
+      }
+      
+      if (isNaN(date.getTime())) {
+        throw new Error('Date of birth must be a valid date');
+      }
+      
+      if (date >= new Date()) {
+        throw new Error('Date of birth must be in the past');
+      }
+      
+      return true;
+    }),
+  
   body('age')
     .optional()
     .isInt({ min: 1, max: 120 })
     .withMessage('Age must be between 1 and 120'),
   
   body('gender')
-    .optional()
     .isIn(['MALE', 'FEMALE', 'OTHER'])
-    .withMessage('Gender must be MALE, FEMALE, or OTHER')
+    .withMessage('Gender is required and must be MALE, FEMALE, or OTHER')
 ];
 
 const loginValidation = [
@@ -167,5 +201,12 @@ router.put('/profile', authenticateToken, requireVerification(), profileUpdateVa
  * @access  Private (Authenticated users only)
  */
 router.post('/logout', authenticateToken, authController.logout);
+
+/**
+ * @route   POST /api/auth/test-email
+ * @desc    Test email service (Development only)
+ * @access  Public
+ */
+router.post('/test-email', authController.testEmailService);
 
 module.exports = router;

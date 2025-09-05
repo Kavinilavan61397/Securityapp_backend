@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Building',
     required: function() {
-      return ['BUILDING_ADMIN', 'SECURITY', 'RESIDENT'].includes(this.role);
+      return ['BUILDING_ADMIN', 'SECURITY'].includes(this.role);
     }
   },
   
@@ -108,6 +108,29 @@ const userSchema = new mongoose.Schema({
   
   // Profile
   profilePicture: String,
+  
+  // Date of Birth (from Figma design)
+  dateOfBirth: {
+    type: Date,
+    required: [true, 'Date of birth is required'],
+    validate: {
+      validator: function(date) {
+        return date < new Date();
+      },
+      message: 'Date of birth must be in the past'
+    },
+    get: function(date) {
+      // Return date in dd/mm/yyyy format for API responses
+      if (!date) return null;
+      const d = new Date(date);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+  },
+  
+  // Age (calculated from dateOfBirth)
   age: {
     type: Number,
     min: [1, 'Age must be at least 1'],
@@ -116,7 +139,8 @@ const userSchema = new mongoose.Schema({
   
   gender: {
     type: String,
-    enum: ['MALE', 'FEMALE', 'OTHER']
+    enum: ['MALE', 'FEMALE', 'OTHER'],
+    required: [true, 'Gender is required']
   }
 }, {
   timestamps: true,
@@ -147,8 +171,28 @@ userSchema.virtual('roleDisplay').get(function() {
   return roleMap[this.role] || this.role;
 });
 
+// Virtual for calculated age from dateOfBirth
+userSchema.virtual('calculatedAge').get(function() {
+  if (!this.dateOfBirth) return null;
+  const today = new Date();
+  const birthDate = new Date(this.dateOfBirth);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  return age;
+});
+
 // Pre-save middleware
 userSchema.pre('save', async function(next) {
+  // Calculate age from dateOfBirth if not provided
+  if (this.dateOfBirth && !this.age) {
+    this.age = this.calculatedAge;
+  }
+  
   // Only hash OTP if it has been modified
   if (this.isModified('otp.code') && this.otp.code) {
     this.otp.code = await bcrypt.hash(this.otp.code, 10);

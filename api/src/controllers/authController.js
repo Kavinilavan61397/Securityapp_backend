@@ -80,12 +80,7 @@ class AuthController {
         });
       }
 
-      if (role === 'RESIDENT' && !flatNumber) {
-        return res.status(400).json({
-          success: false,
-          message: 'Flat number is required for residents'
-        });
-      }
+      // Note: flatNumber and tenantType are now optional for residents
 
       // Create user
       const user = new User({

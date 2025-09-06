@@ -41,12 +41,13 @@ const registerValidation = [
     .withMessage('Employee code is required for this role'),
   
   body('flatNumber')
-    .if(body('role').equals('RESIDENT'))
-    .notEmpty()
-    .withMessage('Flat number is required for residents'),
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Flat number cannot exceed 20 characters'),
   
   body('tenantType')
-    .if(body('role').equals('RESIDENT'))
+    .optional()
     .isIn(['OWNER', 'TENANT'])
     .withMessage('Tenant type must be either OWNER or TENANT'),
   

@@ -26,6 +26,11 @@ class EmailService {
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS
+        },
+        tls: {
+          // Fix for self-signed certificate error
+          rejectUnauthorized: process.env.NODE_ENV === 'production' ? true : false,
+          ciphers: 'SSLv3'
         }
       };
 
@@ -37,6 +42,16 @@ class EmailService {
         if (error) {
           console.error('❌ Email service configuration error:', error.message);
           console.log('💡 Please check your email configuration in .env file');
+          
+          // Provide specific solutions based on error type
+          if (error.message.includes('self-signed certificate')) {
+            console.log('🔧 Solution 1: Add NODE_TLS_REJECT_UNAUTHORIZED=0 to your .env file');
+            console.log('🔧 Solution 2: Use App Password instead of regular password for Gmail');
+            console.log('🔧 Solution 3: Check if you\'re behind a corporate firewall/proxy');
+          } else if (error.message.includes('Invalid login')) {
+            console.log('🔧 Solution: Check your EMAIL_USER and EMAIL_PASS in .env file');
+            console.log('🔧 For Gmail: Use App Password, not your regular password');
+          }
         } else {
           console.log('✅ Email service ready to send emails');
         }

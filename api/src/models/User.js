@@ -1,11 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-/**
- * User Model - 4-Tier Role System
- * Super Admin → Building Admin → Security → Resident
- * 100% Dynamic - No hardcoded values
- */
+
 
 const userSchema = new mongoose.Schema({
   // Basic Information
@@ -61,20 +57,17 @@ const userSchema = new mongoose.Schema({
     sparse: true
   },
   
-  // Resident-specific fields
+  // Resident-specific fields (optional)
   flatNumber: {
     type: String,
-    required: function() {
-      return this.role === 'RESIDENT';
-    }
+    trim: true,
+    maxlength: [20, 'Flat number cannot exceed 20 characters']
   },
   
   tenantType: {
     type: String,
     enum: ['OWNER', 'TENANT'],
-    required: function() {
-      return this.role === 'RESIDENT';
-    }
+    default: 'OWNER'
   },
   
   // Account Status

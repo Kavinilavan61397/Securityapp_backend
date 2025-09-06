@@ -5,7 +5,7 @@
 # Development conversation log (private)
 chat.txt
 chat_complete.txt
-
+COMPLETE_ENDPOINTS_REFERENCE.md
 # Environment files
 .env
 .env.local

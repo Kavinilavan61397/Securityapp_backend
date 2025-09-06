@@ -45,7 +45,7 @@ class AuthController {
         });
       }
 
-      const { name, email, phoneNumber, role, buildingId, employeeCode, flatNumber, tenantType, dateOfBirth, age, gender } = req.body;
+      const { name, email, phoneNumber, role, buildingId, employeeCode, flatNumber, tenantType, dateOfBirth, age, gender, completeAddress, city, pincode } = req.body;
 
       // Convert dateOfBirth to proper Date object
       let formattedDateOfBirth;
@@ -95,6 +95,9 @@ class AuthController {
         dateOfBirth: formattedDateOfBirth,
         age,
         gender,
+        completeAddress,
+        city,
+        pincode,
         isVerified: role === 'SUPER_ADMIN' ? true : false // Super admins are auto-verified
       });
 
@@ -222,20 +225,38 @@ class AuthController {
     try {
       const { userId, otp } = req.body;
 
-      if (!userId || !otp) {
+      if (!otp) {
         return res.status(400).json({
           success: false,
-          message: 'User ID and OTP are required'
+          message: 'OTP is required'
         });
       }
 
-      // Find user
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
+      let user;
+
+      if (userId) {
+        // If userId is provided, find user by ID (backward compatibility)
+        user = await User.findById(userId);
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: 'User not found'
+          });
+        }
+      } else {
+        // If userId is not provided, find user by active OTP
+        // This matches the Figma design where only OTP is required
+        user = await User.findOne({
+          'otp.code': { $exists: true },
+          'otp.expiresAt': { $gt: new Date() }
         });
+
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: 'No active OTP found. Please request a new OTP.'
+          });
+        }
       }
 
       // Verify OTP
@@ -310,20 +331,31 @@ class AuthController {
     try {
       const { userId } = req.body;
 
-      if (!userId) {
-        return res.status(400).json({
-          success: false,
-          message: 'User ID is required'
-        });
-      }
+      let user;
 
-      // Find user
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
+      if (userId) {
+        // If userId is provided, find user by ID
+        user = await User.findById(userId);
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: 'User not found'
+          });
+        }
+      } else {
+        // If userId is not provided, find user by most recent OTP request
+        // This matches the Figma design where only OTP is required
+        user = await User.findOne({
+          'otp.code': { $exists: true },
+          'otp.expiresAt': { $gt: new Date() }
+        }).sort({ 'otp.expiresAt': -1 });
+
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: 'No active OTP found. Please login again to request a new OTP.'
+          });
+        }
       }
 
       // Generate new OTP
@@ -403,7 +435,7 @@ class AuthController {
    */
   async updateProfile(req, res) {
     try {
-      const { name, age, gender, profilePicture } = req.body;
+      const { name, age, gender, profilePicture, completeAddress, city, pincode } = req.body;
 
       const user = await User.findById(req.user.userId);
       if (!user) {
@@ -418,6 +450,9 @@ class AuthController {
       if (age) user.age = age;
       if (gender) user.gender = gender;
       if (profilePicture) user.profilePicture = profilePicture;
+      if (completeAddress) user.completeAddress = completeAddress;
+      if (city) user.city = city;
+      if (pincode) user.pincode = pincode;
 
       await user.save();
 

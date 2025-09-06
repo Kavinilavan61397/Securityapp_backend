@@ -105,7 +105,10 @@ const userSchema = new mongoose.Schema({
   // Date of Birth (from Figma design)
   dateOfBirth: {
     type: Date,
-    required: [true, 'Date of birth is required'],
+    required: function() {
+      // Only require for new users (when _id doesn't exist yet)
+      return !this._id;
+    },
     validate: {
       validator: function(date) {
         return date < new Date();
@@ -133,8 +136,67 @@ const userSchema = new mongoose.Schema({
   gender: {
     type: String,
     enum: ['MALE', 'FEMALE', 'OTHER'],
-    required: [true, 'Gender is required']
-  }
+    required: function() {
+      // Only require for new users (when _id doesn't exist yet)
+      return !this._id;
+    }
+  },
+  
+  // Address fields (from Figma design)
+  completeAddress: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Complete address cannot exceed 500 characters']
+  },
+  
+  city: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'City name cannot exceed 100 characters']
+  },
+  
+  pincode: {
+    type: String,
+    trim: true,
+    match: [/^\d{6}$/, 'Pincode must be 6 digits'],
+    maxlength: [6, 'Pincode must be 6 digits']
+  },
+  
+  // Family members (sub-document array for residents)
+  familyMembers: [{
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [100, 'Family member name cannot exceed 100 characters']
+    },
+    relation: {
+      type: String,
+      required: true,
+      enum: ['SPOUSE', 'CHILD', 'PARENT', 'SIBLING', 'OTHER'],
+      trim: true
+    },
+    dateOfBirth: {
+      type: Date,
+      required: true,
+      validate: {
+        validator: function(date) {
+          return date < new Date();
+        },
+        message: 'Date of birth must be in the past'
+      }
+    },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      match: [/^[+]?[\d\s\-\(\)]+$/, 'Please enter a valid phone number']
+    },
+    flatNumber: {
+      type: String,
+      trim: true,
+      maxlength: [20, 'Flat number cannot exceed 20 characters']
+    }
+  }]
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

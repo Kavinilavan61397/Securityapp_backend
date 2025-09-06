@@ -52,6 +52,7 @@ const registerValidation = [
     .withMessage('Tenant type must be either OWNER or TENANT'),
   
   body('dateOfBirth')
+    .optional()
     .custom((value) => {
       // Accept multiple date formats: dd/mm/yyyy, yyyy-mm-dd, ISO8601
       const formats = [
@@ -92,8 +93,26 @@ const registerValidation = [
     .withMessage('Age must be between 1 and 120'),
   
   body('gender')
+    .optional()
     .isIn(['MALE', 'FEMALE', 'OTHER'])
-    .withMessage('Gender is required and must be MALE, FEMALE, or OTHER')
+    .withMessage('Gender must be MALE, FEMALE, or OTHER'),
+  
+  body('completeAddress')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Complete address cannot exceed 500 characters'),
+  
+  body('city')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('City name cannot exceed 100 characters'),
+  
+  body('pincode')
+    .optional()
+    .matches(/^\d{6}$/)
+    .withMessage('Pincode must be 6 digits')
 ];
 
 const loginValidation = [
@@ -116,8 +135,9 @@ const loginValidation = [
 
 const otpValidation = [
   body('userId')
+    .optional()
     .isMongoId()
-    .withMessage('Valid user ID is required'),
+    .withMessage('User ID must be a valid MongoDB ObjectId'),
   
   body('otp')
     .isLength({ min: 4, max: 4 })
@@ -127,8 +147,9 @@ const otpValidation = [
 
 const resendOTPValidation = [
   body('userId')
+    .optional()
     .isMongoId()
-    .withMessage('Valid user ID is required')
+    .withMessage('User ID must be a valid MongoDB ObjectId')
 ];
 
 const profileUpdateValidation = [
@@ -151,7 +172,24 @@ const profileUpdateValidation = [
   body('profilePicture')
     .optional()
     .isURL()
-    .withMessage('Profile picture must be a valid URL')
+    .withMessage('Profile picture must be a valid URL'),
+  
+  body('completeAddress')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Complete address cannot exceed 500 characters'),
+  
+  body('city')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('City name cannot exceed 100 characters'),
+  
+  body('pincode')
+    .optional()
+    .matches(/^\d{6}$/)
+    .withMessage('Pincode must be 6 digits')
 ];
 
 /**

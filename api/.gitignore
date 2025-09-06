@@ -3,3 +3,5 @@ node_modules/
 logs/ 
 coverage/
 chat.txt
+EMAIL_SETUP_GUIDE.md
+POSTMAN_ENDPOINTS_REFERENCE.md

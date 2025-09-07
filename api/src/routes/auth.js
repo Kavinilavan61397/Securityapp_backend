@@ -207,6 +207,34 @@ router.post('/register', registerValidation, authController.register);
 router.post('/login', loginValidation, authController.login);
 
 /**
+ * @route   POST /api/auth/resident-login
+ * @desc    Resident login (Figma design flow)
+ * @access  Public
+ */
+const residentLoginValidation = [
+  body('name')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters'),
+  
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  
+  body('phoneNumber')
+    .matches(/^[+]?[\d\s\-\(\)]+$/)
+    .withMessage('Please provide a valid phone number'),
+  
+  body('flatNumber')
+    .trim()
+    .isLength({ min: 1, max: 20 })
+    .withMessage('Flat number is required and cannot exceed 20 characters')
+];
+
+router.post('/resident-login', residentLoginValidation, authController.residentLogin);
+
+/**
  * @route   POST /api/auth/verify-otp
  * @desc    Verify OTP and complete login
  * @access  Public

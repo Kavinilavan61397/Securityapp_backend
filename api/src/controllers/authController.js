@@ -218,6 +218,102 @@ class AuthController {
   }
 
   /**
+   * Resident Login (Figma Design Flow)
+   * POST /api/auth/resident-login
+   * Matches the "Sign in to Your Account" screen from Figma
+   */
+  async residentLogin(req, res) {
+    try {
+      const { name, email, phoneNumber, flatNumber } = req.body;
+
+      // Validate required fields
+      if (!name || !email || !phoneNumber || !flatNumber) {
+        return res.status(400).json({
+          success: false,
+          message: 'Name, Email, Phone Number, and Flat Number are required'
+        });
+      }
+
+      // Find resident by phone number and flat number
+      const user = await User.findOne({
+        phoneNumber,
+        flatNumber,
+        role: 'RESIDENT'
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident not found with this phone number and flat number'
+        });
+      }
+
+      // Verify additional details match
+      if (user.name.toLowerCase() !== name.toLowerCase() || 
+          user.email.toLowerCase() !== email.toLowerCase()) {
+        return res.status(401).json({
+          success: false,
+          message: 'Details do not match our records'
+        });
+      }
+
+      if (!user.isActive) {
+        return res.status(401).json({
+          success: false,
+          message: 'Account is deactivated'
+        });
+      }
+
+      if (!user.canLogin) {
+        return res.status(401).json({
+          success: false,
+          message: 'Login access is disabled for this account'
+        });
+      }
+
+      // Generate OTP for verification
+      const otpCode = user.generateOTP();
+      await user.save();
+
+      // Send OTP via Email (for now, can be extended to SMS)
+      const emailResult = await emailService.sendOTPEmail(
+        user.email,
+        otpCode,
+        user.name,
+        'resident-login'
+      );
+
+      // Log email result for debugging
+      if (!emailResult.success) {
+        console.error('Failed to send resident login OTP email:', emailResult.error);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'OTP sent to your registered phone number',
+        data: {
+          userId: user._id,
+          name: user.name,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          flatNumber: user.flatNumber,
+          role: user.role,
+          otpSent: true,
+          otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined
+        }
+      });
+
+    } catch (error) {
+      console.error('Resident login error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
    * OTP Verification
    * POST /api/auth/verify-otp
    */

@@ -97,6 +97,12 @@ const registerValidation = [
     .isIn(['MALE', 'FEMALE', 'OTHER'])
     .withMessage('Gender must be MALE, FEMALE, or OTHER'),
   
+  body('address')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Address cannot exceed 500 characters'),
+  
   body('completeAddress')
     .optional()
     .trim()
@@ -174,6 +180,12 @@ const profileUpdateValidation = [
     .isURL()
     .withMessage('Profile picture must be a valid URL'),
   
+  body('address')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Address cannot exceed 500 characters'),
+  
   body('completeAddress')
     .optional()
     .trim()
@@ -227,9 +239,10 @@ const residentLoginValidation = [
     .withMessage('Please provide a valid phone number'),
   
   body('flatNumber')
+    .optional()
     .trim()
-    .isLength({ min: 1, max: 20 })
-    .withMessage('Flat number is required and cannot exceed 20 characters')
+    .isLength({ max: 20 })
+    .withMessage('Flat number cannot exceed 20 characters')
 ];
 
 router.post('/resident-login', residentLoginValidation, authController.residentLogin);

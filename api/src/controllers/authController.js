@@ -45,7 +45,7 @@ class AuthController {
         });
       }
 
-      const { name, email, phoneNumber, role, buildingId, employeeCode, flatNumber, tenantType, dateOfBirth, age, gender, completeAddress, city, pincode } = req.body;
+      const { name, email, phoneNumber, role, buildingId, employeeCode, flatNumber, tenantType, dateOfBirth, age, gender, address, completeAddress, city, pincode } = req.body;
 
       // Convert dateOfBirth to proper Date object
       let formattedDateOfBirth;
@@ -95,6 +95,7 @@ class AuthController {
         dateOfBirth: formattedDateOfBirth,
         age,
         gender,
+        address,
         completeAddress,
         city,
         pincode,
@@ -227,24 +228,24 @@ class AuthController {
       const { name, email, phoneNumber, flatNumber } = req.body;
 
       // Validate required fields
-      if (!name || !email || !phoneNumber || !flatNumber) {
+      if (!name || !email || !phoneNumber) {
         return res.status(400).json({
           success: false,
-          message: 'Name, Email, Phone Number, and Flat Number are required'
+          message: 'Name, Email, and Phone Number are required'
         });
       }
 
-      // Find resident by phone number and flat number
+      // Find resident by phone number (flat number is now optional)
       const user = await User.findOne({
         phoneNumber,
-        flatNumber,
-        role: 'RESIDENT'
+        role: 'RESIDENT',
+        ...(flatNumber && { flatNumber })
       });
 
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'Resident not found with this phone number and flat number'
+          message: 'Resident not found with this phone number' + (flatNumber ? ' and flat number' : '')
         });
       }
 
@@ -531,7 +532,7 @@ class AuthController {
    */
   async updateProfile(req, res) {
     try {
-      const { name, age, gender, profilePicture, completeAddress, city, pincode } = req.body;
+      const { name, age, gender, profilePicture, address, completeAddress, city, pincode } = req.body;
 
       const user = await User.findById(req.user.userId);
       if (!user) {
@@ -546,6 +547,7 @@ class AuthController {
       if (age) user.age = age;
       if (gender) user.gender = gender;
       if (profilePicture) user.profilePicture = profilePicture;
+      if (address) user.address = address;
       if (completeAddress) user.completeAddress = completeAddress;
       if (city) user.city = city;
       if (pincode) user.pincode = pincode;

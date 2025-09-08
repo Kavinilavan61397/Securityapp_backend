@@ -143,6 +143,12 @@ const userSchema = new mongoose.Schema({
   },
   
   // Address fields (from Figma design)
+  address: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Address cannot exceed 500 characters']
+  },
+  
   completeAddress: {
     type: String,
     trim: true,

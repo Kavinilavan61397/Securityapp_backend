@@ -76,6 +76,36 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   
+  // Enhanced Verification System (Additive)
+  verification: {
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
+    verificationLevel: {
+      type: String,
+      enum: ['PENDING', 'VERIFIED', 'REJECTED'],
+      default: 'PENDING'
+    },
+    verificationNotes: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Verification notes cannot exceed 500 characters']
+    },
+    verificationType: {
+      type: String,
+      enum: ['AUTOMATIC', 'MANUAL'],
+      default: 'AUTOMATIC'
+    },
+    verifiedAt: {
+      type: Date
+    },
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  },
+  
   isActive: {
     type: Boolean,
     default: true
@@ -245,6 +275,16 @@ userSchema.virtual('calculatedAge').get(function() {
   }
   
   return age;
+});
+
+// Virtual for verification status (backward compatibility)
+userSchema.virtual('verificationStatus').get(function() {
+  return this.verification?.isVerified || this.isVerified || false;
+});
+
+// Virtual for verification level
+userSchema.virtual('verificationLevel').get(function() {
+  return this.verification?.verificationLevel || 'PENDING';
 });
 
 // Pre-save middleware

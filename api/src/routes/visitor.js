@@ -12,6 +12,7 @@ router.use(authenticateToken);
 
 // Validation middleware
 const validateVisitorCreation = [
+  // Required fields only
   body('name')
     .trim()
     .isLength({ min: 2, max: 100 })
@@ -26,19 +27,34 @@ const validateVisitorCreation = [
     .normalizeEmail()
     .withMessage('Please enter a valid email'),
   
+  // New Date and Time fields (optional)
+  body('Date')
+    .optional()
+    .matches(/^\d{2}\/\d{2}\/\d{4}$/)
+    .withMessage('Date must be in dd/mm/yyyy format'),
+  
+  body('Time')
+    .optional()
+    .matches(/^\d{1,2}:\d{2}\s?(am|pm)$/i)
+    .withMessage('Time must be in hh:mm am/pm format'),
+  
+  // All other fields are now optional
   body('idType')
+    .optional()
     .isIn(['AADHAR', 'PAN', 'DRIVING_LICENSE', 'PASSPORT', 'VOTER_ID', 'OTHER'])
     .withMessage('Invalid ID type'),
   
   body('idNumber')
+    .optional()
     .trim()
     .isLength({ min: 1 })
-    .withMessage('ID number is required'),
+    .withMessage('ID number must not be empty if provided'),
   
   body('purpose')
+    .optional()
     .trim()
     .isLength({ min: 5, max: 200 })
-    .withMessage('Purpose must be between 5 and 200 characters'),
+    .withMessage('Purpose must be between 5 and 200 characters if provided'),
   
   body('company')
     .optional()

@@ -1,7 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
-const { authenticateToken, requireVerification } = require('../middleware/auth');
+const { authenticateToken, requireVerification, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -288,5 +288,26 @@ router.post('/logout', authenticateToken, authController.logout);
  * @access  Public
  */
 router.post('/test-email', authController.testEmailService);
+
+/**
+ * @route   PUT /api/admin/users/:userId/verify
+ * @desc    Admin user verification (Additive feature)
+ * @access  Private (Admin only)
+ */
+router.put('/admin/users/:userId/verify', 
+  authenticateToken, 
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  [
+    body('verificationLevel')
+      .isIn(['VERIFIED', 'REJECTED'])
+      .withMessage('verificationLevel must be VERIFIED or REJECTED'),
+    body('verificationNotes')
+      .optional()
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage('Verification notes cannot exceed 500 characters')
+  ],
+  authController.verifyUser
+);
 
 module.exports = router;

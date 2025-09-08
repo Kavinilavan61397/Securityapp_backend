@@ -99,7 +99,13 @@ class AuthController {
         completeAddress,
         city,
         pincode,
-        isVerified: role === 'SUPER_ADMIN' ? true : false // Super admins are auto-verified
+        isVerified: role === 'SUPER_ADMIN' ? true : false, // Super admins are auto-verified
+        // Enhanced verification system (additive)
+        verification: {
+          isVerified: role === 'SUPER_ADMIN' ? true : false,
+          verificationLevel: role === 'SUPER_ADMIN' ? 'VERIFIED' : 'PENDING',
+          verificationType: role === 'SUPER_ADMIN' ? 'AUTOMATIC' : 'AUTOMATIC'
+        }
       });
 
       await user.save();
@@ -129,6 +135,7 @@ class AuthController {
           email: user.email,
           role: user.role,
           isVerified: user.isVerified,
+          verificationLevel: user.verification?.verificationLevel || 'PENDING',
           emailSent: emailResult.success,
           otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined
         }
@@ -203,6 +210,8 @@ class AuthController {
           userId: user._id,
           email: user.email,
           role: user.role,
+          isVerified: user.isVerified,
+          verificationLevel: user.verification?.verificationLevel || 'PENDING',
           emailSent: emailResult.success,
           otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined
         }
@@ -299,6 +308,8 @@ class AuthController {
           phoneNumber: user.phoneNumber,
           flatNumber: user.flatNumber,
           role: user.role,
+          isVerified: user.isVerified,
+          verificationLevel: user.verification?.verificationLevel || 'PENDING',
           otpSent: true,
           otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined
         }
@@ -403,7 +414,8 @@ class AuthController {
             role: user.role,
             roleDisplay: user.roleDisplay,
             buildingId: user.buildingId,
-            isVerified: user.isVerified
+            isVerified: user.isVerified,
+            verificationLevel: user.verification?.verificationLevel || 'PENDING'
           },
           token,
           expiresIn: process.env.JWT_EXPIRES_IN || '7d'
@@ -623,6 +635,87 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Email service test failed',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Admin User Verification (Additive Feature)
+   * PUT /api/admin/users/:userId/verify
+   * Allows admins to verify/reject users without blocking the flow
+   */
+  async verifyUser(req, res) {
+    try {
+      const { userId } = req.params;
+      const { verificationLevel, verificationNotes } = req.body;
+      const adminId = req.user.userId; // From JWT token
+
+      // Validate input
+      if (!verificationLevel || !['VERIFIED', 'REJECTED'].includes(verificationLevel)) {
+        return res.status(400).json({
+          success: false,
+          message: 'verificationLevel is required and must be VERIFIED or REJECTED'
+        });
+      }
+
+      // Find the user to verify
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Find the admin performing the verification
+      const admin = await User.findById(adminId);
+      if (!admin) {
+        return res.status(404).json({
+          success: false,
+          message: 'Admin not found'
+        });
+      }
+
+      // Update verification status
+      user.verification = {
+        isVerified: verificationLevel === 'VERIFIED',
+        verificationLevel: verificationLevel,
+        verificationNotes: verificationNotes || '',
+        verificationType: 'MANUAL',
+        verifiedAt: new Date(),
+        verifiedBy: adminId
+      };
+
+      // Also update the legacy isVerified field for backward compatibility
+      user.isVerified = verificationLevel === 'VERIFIED';
+
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: `User ${verificationLevel.toLowerCase()} successfully`,
+        data: {
+          userId: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          verificationLevel: user.verification.verificationLevel,
+          isVerified: user.verification.isVerified,
+          verifiedAt: user.verification.verifiedAt,
+          verifiedBy: {
+            id: admin._id,
+            name: admin.name,
+            role: admin.role
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('User verification error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
       });
     }

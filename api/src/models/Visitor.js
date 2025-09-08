@@ -22,17 +22,28 @@ const visitorSchema = new mongoose.Schema({
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   
+  // New Date and Time Fields
+  Date: {
+    type: String,
+    trim: true,
+    match: [/^\d{2}\/\d{2}\/\d{4}$/, 'Date must be in dd/mm/yyyy format']
+  },
+  
+  Time: {
+    type: String,
+    trim: true,
+    match: [/^\d{1,2}:\d{2}\s?(am|pm)$/i, 'Time must be in hh:mm am/pm format']
+  },
+  
   // Identification
   idType: {
     type: String,
-    required: [true, 'ID type is required'],
     enum: ['AADHAR', 'PAN', 'DRIVING_LICENSE', 'PASSPORT', 'VOTER_ID', 'OTHER'],
     default: 'AADHAR'
   },
   
   idNumber: {
     type: String,
-    required: [true, 'ID number is required'],
     trim: true
   },
   
@@ -46,14 +57,12 @@ const visitorSchema = new mongoose.Schema({
   // Building Association
   buildingId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Building',
-    required: [true, 'Building ID is required']
+    ref: 'Building'
   },
   
   // Visit Information
   purpose: {
     type: String,
-    required: [true, 'Visit purpose is required'],
     trim: true,
     maxlength: [200, 'Purpose cannot exceed 200 characters']
   },

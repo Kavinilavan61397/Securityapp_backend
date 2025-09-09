@@ -1,5 +1,5 @@
 const express = require('express');
-const { body, param, query } = require('express-validator');
+const { body, param, query, validationResult } = require('express-validator');
 const familyMemberController = require('../controllers/familyMemberController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
@@ -253,6 +253,10 @@ const validateRouteParams = [
   param('memberId').isMongoId().withMessage('Invalid member ID')
 ];
 
+const validateBuildingIdOnly = [
+  param('buildingId').isMongoId().withMessage('Invalid building ID')
+];
+
 // Routes
 
 /**
@@ -261,10 +265,10 @@ const validateRouteParams = [
  * @access  Private (Resident only)
  */
 router.post('/:buildingId',
-  validateRouteParams,
+  validateBuildingIdOnly,
   validateFamilyMemberCreation,
   buildingAccess,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
   familyMemberController.createFamilyMember
 );
 
@@ -274,10 +278,10 @@ router.post('/:buildingId',
  * @access  Private (Resident only)
  */
 router.get('/:buildingId',
-  validateRouteParams,
+  validateBuildingIdOnly,
   validateQuery,
   buildingAccess,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
   familyMemberController.getFamilyMembers
 );
 
@@ -289,7 +293,7 @@ router.get('/:buildingId',
 router.get('/:buildingId/:memberId',
   validateRouteParams,
   buildingAccess,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
   familyMemberController.getFamilyMember
 );
 
@@ -302,7 +306,7 @@ router.put('/:buildingId/:memberId',
   validateRouteParams,
   validateFamilyMemberUpdate,
   buildingAccess,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
   familyMemberController.updateFamilyMember
 );
 
@@ -314,7 +318,7 @@ router.put('/:buildingId/:memberId',
 router.delete('/:buildingId/:memberId',
   validateRouteParams,
   buildingAccess,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
   familyMemberController.deleteFamilyMember
 );
 

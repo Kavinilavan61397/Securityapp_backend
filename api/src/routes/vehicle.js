@@ -1,8 +1,7 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const vehicleController = require('../controllers/vehicleController');
-const { authenticateToken, authorizeRoles } = require('../middleware/auth');
-const { buildingAccess } = require('../middleware/auth');
+const { authenticateToken, authorizeRoles, buildingAccess } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -279,7 +278,7 @@ router.post('/:buildingId',
   validateRouteParams,
   validateVehicleCreation,
   buildingAccess,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
   vehicleController.addVehicle
 );
 
@@ -317,7 +316,7 @@ router.put('/:buildingId/:vehicleId',
   validateRouteParams,
   validateVehicleUpdate,
   buildingAccess,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
   vehicleController.updateVehicle
 );
 
@@ -329,7 +328,7 @@ router.put('/:buildingId/:vehicleId',
 router.delete('/:buildingId/:vehicleId',
   validateRouteParams,
   buildingAccess,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
   vehicleController.deleteVehicle
 );
 

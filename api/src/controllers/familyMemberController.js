@@ -436,6 +436,209 @@ class FamilyMemberController {
       });
     }
   }
+
+  /**
+   * Search Family Members
+   * GET /api/family-members/:buildingId/search
+   */
+  async searchFamilyMembers(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const { q, relation, page = 1, limit = 20 } = req.query;
+      const residentId = req.user.userId;
+
+      // Verify resident exists and belongs to building
+      const resident = await User.findOne({
+        _id: residentId,
+        buildingId: buildingId,
+        role: 'RESIDENT',
+        isActive: true
+      });
+
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident not found or not authorized for this building'
+        });
+      }
+
+      // Build search query
+      const query = {
+        residentId: residentId,
+        buildingId: buildingId,
+        isActive: true
+      };
+
+      if (q) {
+        query.$or = [
+          { name: { $regex: q, $options: 'i' } },
+          { phoneNumber: { $regex: q, $options: 'i' } },
+          { email: { $regex: q, $options: 'i' } }
+        ];
+      }
+
+      if (relation) {
+        query.relation = relation;
+      }
+
+      // Calculate pagination
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      // Search family members
+      const familyMembers = await FamilyMember.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+      // Get total count
+      const totalCount = await FamilyMember.countDocuments(query);
+
+      res.status(200).json({
+        success: true,
+        message: 'Family members search completed',
+        data: {
+          familyMembers: familyMembers.map(member => ({
+            id: member._id,
+            name: member.name,
+            phoneNumber: member.phoneNumber,
+            relation: member.relation,
+            relationDisplay: member.relationDisplay,
+            email: member.email,
+            dateOfBirth: member.dateOfBirth,
+            age: member.age,
+            gender: member.gender,
+            address: member.address,
+            city: member.city,
+            pincode: member.pincode,
+            occupation: member.occupation,
+            emergencyContact: member.emergencyContact,
+            notes: member.notes,
+            createdAt: member.createdAt
+          })),
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(totalCount / parseInt(limit)),
+            totalCount: totalCount,
+            hasNextPage: skip + familyMembers.length < totalCount,
+            hasPrevPage: parseInt(page) > 1
+          },
+          searchQuery: q || null
+        }
+      });
+
+    } catch (error) {
+      console.error('Search family members error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Get Family Member Statistics
+   * GET /api/family-members/:buildingId/stats
+   */
+  async getFamilyMemberStats(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const residentId = req.user.userId;
+
+      // Verify resident exists and belongs to building
+      const resident = await User.findOne({
+        _id: residentId,
+        buildingId: buildingId,
+        role: 'RESIDENT',
+        isActive: true
+      });
+
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident not found or not authorized for this building'
+        });
+      }
+
+      // Get statistics
+      const totalMembers = await FamilyMember.countDocuments({
+        residentId: residentId,
+        buildingId: buildingId,
+        isActive: true
+      });
+
+      const relationStats = await FamilyMember.aggregate([
+        {
+          $match: {
+            residentId: residentId,
+            buildingId: buildingId,
+            isActive: true
+          }
+        },
+        {
+          $group: {
+            _id: '$relation',
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $sort: { count: -1 }
+        }
+      ]);
+
+      const genderStats = await FamilyMember.aggregate([
+        {
+          $match: {
+            residentId: residentId,
+            buildingId: buildingId,
+            isActive: true,
+            gender: { $exists: true, $ne: null }
+          }
+        },
+        {
+          $group: {
+            _id: '$gender',
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $sort: { count: -1 }
+        }
+      ]);
+
+      const emergencyContacts = await FamilyMember.countDocuments({
+        residentId: residentId,
+        buildingId: buildingId,
+        isActive: true,
+        emergencyContact: true
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Family member statistics retrieved successfully',
+        data: {
+          totalMembers: totalMembers,
+          emergencyContacts: emergencyContacts,
+          relationBreakdown: relationStats.map(stat => ({
+            relation: stat._id,
+            count: stat.count
+          })),
+          genderBreakdown: genderStats.map(stat => ({
+            gender: stat._id,
+            count: stat.count
+          }))
+        }
+      });
+
+    } catch (error) {
+      console.error('Get family member stats error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
 }
 
 module.exports = new FamilyMemberController();

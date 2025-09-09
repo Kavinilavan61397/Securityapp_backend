@@ -275,6 +275,7 @@ const validateVerification = [
  * @access  Private (Resident only)
  */
 router.post('/:buildingId',
+  authenticateToken,
   validateRouteParams,
   validateVehicleCreation,
   buildingAccess,
@@ -288,6 +289,7 @@ router.post('/:buildingId',
  * @access  Private (Resident: own vehicles, Admin/Security: all building vehicles)
  */
 router.get('/:buildingId',
+  authenticateToken,
   validateRouteParams,
   validateQueryParams,
   buildingAccess,
@@ -301,6 +303,7 @@ router.get('/:buildingId',
  * @access  Private (Resident: own vehicles, Admin/Security: all building vehicles)
  */
 router.get('/:buildingId/:vehicleId',
+  authenticateToken,
   validateRouteParams,
   buildingAccess,
   authorizeRoles(['RESIDENT', 'BUILDING_ADMIN', 'SECURITY', 'SUPER_ADMIN']),
@@ -313,6 +316,7 @@ router.get('/:buildingId/:vehicleId',
  * @access  Private (Owner only)
  */
 router.put('/:buildingId/:vehicleId',
+  authenticateToken,
   validateRouteParams,
   validateVehicleUpdate,
   buildingAccess,
@@ -326,6 +330,7 @@ router.put('/:buildingId/:vehicleId',
  * @access  Private (Owner only)
  */
 router.delete('/:buildingId/:vehicleId',
+  authenticateToken,
   validateRouteParams,
   buildingAccess,
   authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
@@ -338,6 +343,7 @@ router.delete('/:buildingId/:vehicleId',
  * @access  Private (Building Admin, Super Admin only)
  */
 router.put('/:buildingId/:vehicleId/verify',
+  authenticateToken,
   validateRouteParams,
   validateVerification,
   buildingAccess,
@@ -351,6 +357,7 @@ router.put('/:buildingId/:vehicleId/verify',
  * @access  Private (Building Admin, Super Admin only)
  */
 router.get('/:buildingId/stats',
+  authenticateToken,
   validateRouteParams,
   buildingAccess,
   authorizeRoles(['BUILDING_ADMIN', 'SUPER_ADMIN']),

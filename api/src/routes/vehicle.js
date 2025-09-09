@@ -217,6 +217,12 @@ const validateVehicleUpdate = [
     .withMessage('Notes cannot exceed 500 characters')
 ];
 
+const validateBuildingIdOnly = [
+  param('buildingId')
+    .isMongoId()
+    .withMessage('Invalid building ID format')
+];
+
 const validateRouteParams = [
   param('buildingId')
     .isMongoId()
@@ -276,7 +282,7 @@ const validateVerification = [
  */
 router.post('/:buildingId',
   authenticateToken,
-  validateRouteParams,
+  validateBuildingIdOnly,
   validateVehicleCreation,
   buildingAccess,
   authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
@@ -290,7 +296,7 @@ router.post('/:buildingId',
  */
 router.get('/:buildingId',
   authenticateToken,
-  validateRouteParams,
+  validateBuildingIdOnly,
   validateQueryParams,
   buildingAccess,
   authorizeRoles(['RESIDENT', 'BUILDING_ADMIN', 'SECURITY', 'SUPER_ADMIN']),
@@ -358,7 +364,7 @@ router.put('/:buildingId/:vehicleId/verify',
  */
 router.get('/:buildingId/stats',
   authenticateToken,
-  validateRouteParams,
+  validateBuildingIdOnly,
   buildingAccess,
   authorizeRoles(['BUILDING_ADMIN', 'SUPER_ADMIN']),
   vehicleController.getVehicleStats

@@ -265,14 +265,6 @@ router.delete('/:buildingId',
   BuildingController.deleteBuilding
 );
 
-// Route: Get All Buildings
-// GET /api/buildings
-// Access control based on user role
-router.get('/',
-  authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'RESIDENT']),
-  BuildingController.getAllBuildings
-);
 
 // Route: Get Building Statistics
 // GET /api/buildings/:buildingId/stats

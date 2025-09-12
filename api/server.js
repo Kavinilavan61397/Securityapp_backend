@@ -19,6 +19,9 @@ const photoRoutes = require('./src/routes/photo');
 const analyticsRoutes = require('./src/routes/analytics');
 const familyMemberRoutes = require('./src/routes/familyMember');
 const vehicleRoutes = require('./src/routes/vehicle');
+const complaintRoutes = require('./src/routes/complaint');
+const helpSupportRoutes = require('./src/routes/helpSupport');
+const faqRoutes = require('./src/routes/faq');
 
 // Initialize Express app
 const app = express();
@@ -117,6 +120,9 @@ app.use('/api/photos', photoRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/family-members', familyMemberRoutes);
 app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/complaints', complaintRoutes);
+app.use('/api/help-support', helpSupportRoutes);
+app.use('/api/faqs', faqRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {

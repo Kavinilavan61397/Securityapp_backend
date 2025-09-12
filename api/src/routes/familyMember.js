@@ -322,4 +322,30 @@ router.delete('/:buildingId/:memberId',
   familyMemberController.deleteFamilyMember
 );
 
+/**
+ * @route   GET /api/family-members/:buildingId/search
+ * @desc    Search family members
+ * @access  Private (Resident only)
+ */
+router.get('/:buildingId/search',
+  authenticateToken,
+  validateBuildingIdOnly,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
+  familyMemberController.searchFamilyMembers
+);
+
+/**
+ * @route   GET /api/family-members/:buildingId/stats
+ * @desc    Get family member statistics
+ * @access  Private (Resident only)
+ */
+router.get('/:buildingId/stats',
+  authenticateToken,
+  validateBuildingIdOnly,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'RESIDENT']),
+  familyMemberController.getFamilyMemberStats
+);
+
 module.exports = router;

@@ -19,7 +19,7 @@ const photoRoutes = require('./src/routes/photo');
 const analyticsRoutes = require('./src/routes/analytics');
 const familyMemberRoutes = require('./src/routes/familyMember');
 const vehicleRoutes = require('./src/routes/vehicle');
-const preApprovalRoutes = require('./src/routes/preApproval');
+// const preApprovalRoutes = require('./src/routes/preApproval'); // Temporarily disabled
 
 // Initialize Express app
 const app = express();
@@ -118,7 +118,7 @@ app.use('/api/photos', photoRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/family-members', familyMemberRoutes);
 app.use('/api/vehicles', vehicleRoutes);
-app.use('/api/pre-approvals', preApprovalRoutes);
+// app.use('/api/pre-approvals', preApprovalRoutes); // Temporarily disabled
 
 // API base endpoint
 app.get('/api', (req, res) => {
@@ -139,7 +139,7 @@ app.get('/api', (req, res) => {
         analytics: `${BASE_URL}/api/analytics`,
         familyMembers: `${BASE_URL}/api/family-members`,
         vehicles: `${BASE_URL}/api/vehicles`,
-        preApprovals: `${BASE_URL}/api/pre-approvals`,
+        // preApprovals: `${BASE_URL}/api/pre-approvals`, // Temporarily disabled
         documentation: `${BASE_URL}/api/docs`
       },
     environment: NODE_ENV

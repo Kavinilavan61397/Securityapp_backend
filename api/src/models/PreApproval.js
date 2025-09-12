@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 /**
  * PreApproval Model
  * Manages pre-approved visitors for residents
- * Robust approach with comprehensive validation and error handling
+ * Simplified version for Vercel compatibility
  */
 const preApprovalSchema = new mongoose.Schema({
   // Visitor reference
@@ -33,7 +33,6 @@ const preApprovalSchema = new mongoose.Schema({
   // Pre-approval details
   purpose: {
     type: String,
-    required: [true, 'Purpose is required'],
     trim: true,
     maxlength: [200, 'Purpose cannot exceed 200 characters']
   },
@@ -41,19 +40,11 @@ const preApprovalSchema = new mongoose.Schema({
   // Validity period
   validFrom: {
     type: Date,
-    required: [true, 'Valid from date is required'],
     default: Date.now
   },
 
   validUntil: {
-    type: Date,
-    required: [true, 'Valid until date is required'],
-    validate: {
-      validator: function(date) {
-        return date > this.validFrom;
-      },
-      message: 'Valid until date must be after valid from date'
-    }
+    type: Date
   },
 
   // Pre-approval status
@@ -90,7 +81,7 @@ const preApprovalSchema = new mongoose.Schema({
     default: false
   },
 
-  // Auto-approve flag (for future visits)
+  // Auto-approve flag
   autoApprove: {
     type: Boolean,
     default: false
@@ -117,11 +108,10 @@ const preApprovalSchema = new mongoose.Schema({
 
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Approved by is required']
+    ref: 'User'
   },
 
-  // Revocation details (if revoked)
+  // Revocation details
   revokedAt: {
     type: Date
   },
@@ -140,12 +130,6 @@ const preApprovalSchema = new mongoose.Schema({
   // Last used date
   lastUsedAt: {
     type: Date
-  },
-
-  // Expiration handling
-  isExpired: {
-    type: Boolean,
-    default: false
   }
 }, {
   timestamps: true,
@@ -158,40 +142,32 @@ preApprovalSchema.index({ visitorId: 1, buildingId: 1 });
 preApprovalSchema.index({ residentId: 1, status: 1 });
 preApprovalSchema.index({ buildingId: 1, status: 1 });
 preApprovalSchema.index({ validUntil: 1, status: 1 });
-preApprovalSchema.index({ status: 1, validUntil: 1 });
 
-// Virtual for remaining usage
+// Simple virtual for remaining usage
 preApprovalSchema.virtual('remainingUsage').get(function() {
+  if (!this.maxUsage || !this.usageCount) return this.maxUsage || 1;
   return Math.max(0, this.maxUsage - this.usageCount);
 });
 
-// Virtual for days until expiration
-preApprovalSchema.virtual('daysUntilExpiration').get(function() {
-  if (this.status !== 'ACTIVE') return null;
-  const now = new Date();
-  const diffTime = this.validUntil - now;
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-});
-
-// Virtual for is valid
+// Simple virtual for is valid
 preApprovalSchema.virtual('isValid').get(function() {
+  if (this.status !== 'ACTIVE') return false;
   const now = new Date();
-  return this.status === 'ACTIVE' && 
-         this.validFrom <= now && 
-         this.validUntil > now && 
-         this.usageCount < this.maxUsage;
+  if (this.validFrom && this.validFrom > now) return false;
+  if (this.validUntil && this.validUntil <= now) return false;
+  if (this.usageCount >= this.maxUsage) return false;
+  return true;
 });
 
 // Pre-save middleware
 preApprovalSchema.pre('save', function(next) {
   // Check if pre-approval is expired
-  if (this.status === 'ACTIVE' && this.validUntil < new Date()) {
+  if (this.status === 'ACTIVE' && this.validUntil && this.validUntil < new Date()) {
     this.status = 'EXPIRED';
-    this.isExpired = true;
   }
   
   // Validate usage count
-  if (this.usageCount >= this.maxUsage) {
+  if (this.usageCount && this.maxUsage && this.usageCount >= this.maxUsage) {
     this.status = 'USED';
   }
   
@@ -204,8 +180,7 @@ preApprovalSchema.statics.findActiveByVisitor = function(visitorId, buildingId) 
     visitorId, 
     buildingId, 
     status: 'ACTIVE',
-    validUntil: { $gt: new Date() },
-    usageCount: { $lt: '$maxUsage' }
+    validUntil: { $gt: new Date() }
   }).sort({ validUntil: 1 });
 };
 
@@ -213,13 +188,6 @@ preApprovalSchema.statics.findByResident = function(residentId, buildingId) {
   return this.find({ residentId, buildingId })
     .populate('visitorId', 'name phoneNumber email')
     .sort({ createdAt: -1 });
-};
-
-preApprovalSchema.statics.findExpired = function() {
-  return this.find({
-    status: 'ACTIVE',
-    validUntil: { $lt: new Date() }
-  });
 };
 
 preApprovalSchema.statics.findByBuilding = function(buildingId, status = 'ACTIVE') {
@@ -249,18 +217,6 @@ preApprovalSchema.methods.revoke = function(revokedBy, reason) {
   this.revokedAt = new Date();
   this.revokedBy = revokedBy;
   this.revokeReason = reason;
-  
-  return this.save();
-};
-
-preApprovalSchema.methods.extendValidity = function(newValidUntil) {
-  if (newValidUntil <= this.validUntil) {
-    throw new Error('New validity date must be after current validity date');
-  }
-  
-  this.validUntil = newValidUntil;
-  this.status = 'ACTIVE';
-  this.isExpired = false;
   
   return this.save();
 };

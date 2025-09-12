@@ -56,15 +56,20 @@ const validatePreApprovalCreation = [
     .isMongoId()
     .withMessage('Valid visitor ID is required'),
 
+  // Optional fields
   body('purpose')
+    .optional()
     .trim()
-    .isLength({ min: 5, max: 200 })
-    .withMessage('Purpose must be between 5 and 200 characters'),
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Purpose must be between 1 and 200 characters'),
 
   body('validUntil')
+    .optional()
     .isISO8601()
     .withMessage('Valid until date must be a valid ISO date')
     .custom((value) => {
+      if (!value) return true; // Optional field
+      
       const validUntil = new Date(value);
       const now = new Date();
       const maxDate = new Date();

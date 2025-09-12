@@ -6,7 +6,7 @@ const Building = require('../models/Building');
 /**
  * PreApproval Controller
  * Handles all pre-approval related operations
- * Robust error handling and comprehensive validation
+ * Simplified for Vercel compatibility
  */
 class PreApprovalController {
   
@@ -67,14 +67,14 @@ class PreApprovalController {
         visitorId,
         residentId: userId,
         buildingId,
-        purpose,
-        validUntil: new Date(validUntil),
+        purpose: purpose || 'General visit',
+        validUntil: validUntil ? new Date(validUntil) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days default
         maxUsage: maxUsage || 1,
-        notes,
+        notes: notes || '',
         isEmergencyContact: isEmergencyContact || false,
         autoApprove: autoApprove || false,
         notifyOnArrival: notifyOnArrival !== false,
-        securityNotes,
+        securityNotes: securityNotes || '',
         approvedBy: userId
       });
 

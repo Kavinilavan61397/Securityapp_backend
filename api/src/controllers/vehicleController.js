@@ -234,7 +234,8 @@ class VehicleController {
       }
 
       // Check access permissions
-      if (userRole === 'RESIDENT' && vehicle.ownerId._id.toString() !== userId) {
+      const ownerId = vehicle.ownerId._id ? vehicle.ownerId._id.toString() : vehicle.ownerId.toString();
+      if (userRole === 'RESIDENT' && ownerId !== userId) {
         return res.status(403).json({
           success: false,
           message: 'Access denied. You can only view your own vehicles.'
@@ -368,7 +369,8 @@ class VehicleController {
       }
 
       // Check if user is the owner
-      if (vehicle.ownerId.toString() !== userId) {
+      const ownerId = vehicle.ownerId._id ? vehicle.ownerId._id.toString() : vehicle.ownerId.toString();
+      if (ownerId !== userId) {
         return res.status(403).json({
           success: false,
           message: 'Access denied. You can only delete your own vehicles.'

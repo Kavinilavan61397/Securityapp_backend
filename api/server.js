@@ -22,6 +22,8 @@ const vehicleRoutes = require('./src/routes/vehicle');
 const complaintRoutes = require('./src/routes/complaint');
 const helpSupportRoutes = require('./src/routes/helpSupport');
 const faqRoutes = require('./src/routes/faq');
+const flatRoutes = require('./src/routes/flat');
+const househelpRoutes = require('./src/routes/househelp');
 
 // Initialize Express app
 const app = express();
@@ -123,6 +125,8 @@ app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/help-support', helpSupportRoutes);
 app.use('/api/faqs', faqRoutes);
+app.use('/api/flats', flatRoutes);
+app.use('/api/househelp', househelpRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {
@@ -143,6 +147,11 @@ app.get('/api', (req, res) => {
         analytics: `${BASE_URL}/api/analytics`,
         familyMembers: `${BASE_URL}/api/family-members`,
         vehicles: `${BASE_URL}/api/vehicles`,
+        flats: `${BASE_URL}/api/flats`,
+        househelp: `${BASE_URL}/api/househelp`,
+        complaints: `${BASE_URL}/api/complaints`,
+        helpSupport: `${BASE_URL}/api/help-support`,
+        faqs: `${BASE_URL}/api/faqs`,
         documentation: `${BASE_URL}/api/docs`
       },
     environment: NODE_ENV

@@ -1,0 +1,297 @@
+const PreApproval = require('../models/PreApproval');
+const Building = require('../models/Building');
+
+// Create a new pre-approval
+const createPreApproval = async (req, res) => {
+  try {
+    const { buildingId } = req.params;
+    const userId = req.user.id || req.user.userId;
+    const { visitorName, visitorPhone, visitorEmail, purpose, expectedDate, expectedTime, notes } = req.body;
+
+    // Verify building exists
+    const building = await Building.findById(buildingId);
+    if (!building) {
+      return res.status(404).json({
+        success: false,
+        message: 'Building not found'
+      });
+    }
+
+    // Create new pre-approval
+    const preApproval = new PreApproval({
+      visitorName,
+      visitorPhone,
+      visitorEmail,
+      purpose,
+      expectedDate,
+      expectedTime,
+      notes,
+      residentId: userId,
+      buildingId
+    });
+
+    await preApproval.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Pre-approval request created successfully',
+      data: {
+        preApprovalId: preApproval._id,
+        visitorName: preApproval.visitorName,
+        visitorPhone: preApproval.visitorPhone,
+        visitorEmail: preApproval.visitorEmail,
+        purpose: preApproval.purpose,
+        expectedDate: preApproval.expectedDate,
+        expectedTime: preApproval.expectedTime,
+        status: preApproval.status,
+        fullIdentification: preApproval.fullIdentification,
+        resident: {
+          id: userId,
+          name: req.user.name || 'Resident'
+        },
+        building: {
+          id: buildingId,
+          name: building.name
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Create pre-approval error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create pre-approval request',
+      error: error.message
+    });
+  }
+};
+
+// Get all pre-approvals for a resident
+const getPreApprovals = async (req, res) => {
+  try {
+    const { buildingId } = req.params;
+    const userId = req.user.id || req.user.userId;
+    const { page = 1, limit = 10, status } = req.query;
+
+    const query = {
+      residentId: userId,
+      buildingId,
+      isDeleted: false
+    };
+
+    if (status) {
+      query.status = status;
+    }
+
+    const preApprovals = await PreApproval.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await PreApproval.countDocuments(query);
+
+    res.json({
+      success: true,
+      message: 'Pre-approvals retrieved successfully',
+      data: {
+        preApprovals: preApprovals.map(pa => ({
+          _id: pa._id,
+          visitorName: pa.visitorName,
+          visitorPhone: pa.visitorPhone,
+          visitorEmail: pa.visitorEmail,
+          purpose: pa.purpose,
+          expectedDate: pa.expectedDate,
+          expectedTime: pa.expectedTime,
+          status: pa.status,
+          fullIdentification: pa.fullIdentification,
+          createdAt: pa.createdAt,
+          updatedAt: pa.updatedAt
+        })),
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          totalPreApprovals: total,
+          hasNext: page < Math.ceil(total / limit),
+          hasPrev: page > 1
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get pre-approvals error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve pre-approvals',
+      error: error.message
+    });
+  }
+};
+
+// Get single pre-approval
+const getPreApproval = async (req, res) => {
+  try {
+    const { buildingId, preApprovalId } = req.params;
+    const userId = req.user.id || req.user.userId;
+
+    const preApproval = await PreApproval.findOne({
+      _id: preApprovalId,
+      residentId: userId,
+      buildingId,
+      isDeleted: false
+    });
+
+    if (!preApproval) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pre-approval not found or access denied'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Pre-approval retrieved successfully',
+      data: {
+        _id: preApproval._id,
+        visitorName: preApproval.visitorName,
+        visitorPhone: preApproval.visitorPhone,
+        visitorEmail: preApproval.visitorEmail,
+        purpose: preApproval.purpose,
+        expectedDate: preApproval.expectedDate,
+        expectedTime: preApproval.expectedTime,
+        notes: preApproval.notes,
+        status: preApproval.status,
+        fullIdentification: preApproval.fullIdentification,
+        createdAt: preApproval.createdAt,
+        updatedAt: preApproval.updatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Get pre-approval error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve pre-approval',
+      error: error.message
+    });
+  }
+};
+
+// Update pre-approval
+const updatePreApproval = async (req, res) => {
+  try {
+    const { buildingId, preApprovalId } = req.params;
+    const userId = req.user.id || req.user.userId;
+    const { visitorName, visitorPhone, visitorEmail, purpose, expectedDate, expectedTime, notes } = req.body;
+
+    const preApproval = await PreApproval.findOne({
+      _id: preApprovalId,
+      residentId: userId,
+      buildingId,
+      isDeleted: false
+    });
+
+    if (!preApproval) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pre-approval not found or access denied'
+      });
+    }
+
+    // Only allow updates if status is PENDING
+    if (preApproval.status !== 'PENDING') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot update pre-approval that has been processed'
+      });
+    }
+
+    // Update fields
+    if (visitorName) preApproval.visitorName = visitorName;
+    if (visitorPhone) preApproval.visitorPhone = visitorPhone;
+    if (visitorEmail !== undefined) preApproval.visitorEmail = visitorEmail;
+    if (purpose !== undefined) preApproval.purpose = purpose;
+    if (expectedDate !== undefined) preApproval.expectedDate = expectedDate;
+    if (expectedTime !== undefined) preApproval.expectedTime = expectedTime;
+    if (notes !== undefined) preApproval.notes = notes;
+
+    await preApproval.save();
+
+    res.json({
+      success: true,
+      message: 'Pre-approval updated successfully',
+      data: {
+        preApprovalId: preApproval._id,
+        visitorName: preApproval.visitorName,
+        visitorPhone: preApproval.visitorPhone,
+        visitorEmail: preApproval.visitorEmail,
+        purpose: preApproval.purpose,
+        expectedDate: preApproval.expectedDate,
+        expectedTime: preApproval.expectedTime,
+        status: preApproval.status,
+        fullIdentification: preApproval.fullIdentification
+      }
+    });
+
+  } catch (error) {
+    console.error('Update pre-approval error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update pre-approval',
+      error: error.message
+    });
+  }
+};
+
+// Delete pre-approval
+const deletePreApproval = async (req, res) => {
+  try {
+    const { buildingId, preApprovalId } = req.params;
+    const userId = req.user.id || req.user.userId;
+
+    const preApproval = await PreApproval.findOne({
+      _id: preApprovalId,
+      residentId: userId,
+      buildingId,
+      isDeleted: false
+    });
+
+    if (!preApproval) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pre-approval not found or access denied'
+      });
+    }
+
+    // Soft delete
+    preApproval.isDeleted = true;
+    preApproval.deletedAt = new Date();
+    preApproval.deletedBy = userId;
+    await preApproval.save();
+
+    res.json({
+      success: true,
+      message: 'Pre-approval deleted successfully',
+      data: {
+        preApprovalId: preApproval._id,
+        visitorName: preApproval.visitorName,
+        deletedAt: preApproval.deletedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Delete pre-approval error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete pre-approval',
+      error: error.message
+    });
+  }
+};
+
+module.exports = {
+  createPreApproval,
+  getPreApprovals,
+  getPreApproval,
+  updatePreApproval,
+  deletePreApproval
+};

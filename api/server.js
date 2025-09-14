@@ -24,6 +24,7 @@ const helpSupportRoutes = require('./src/routes/helpSupport');
 const faqRoutes = require('./src/routes/faq');
 const flatRoutes = require('./src/routes/flat');
 const househelpRoutes = require('./src/routes/househelp');
+const preApprovalRoutes = require('./src/routes/preApproval');
 
 // Initialize Express app
 const app = express();
@@ -127,6 +128,7 @@ app.use('/api/help-support', helpSupportRoutes);
 app.use('/api/faqs', faqRoutes);
 app.use('/api/flats', flatRoutes);
 app.use('/api/househelp', househelpRoutes);
+app.use('/api/pre-approvals', preApprovalRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {
@@ -149,6 +151,7 @@ app.get('/api', (req, res) => {
         vehicles: `${BASE_URL}/api/vehicles`,
         flats: `${BASE_URL}/api/flats`,
         househelp: `${BASE_URL}/api/househelp`,
+        preApprovals: `${BASE_URL}/api/pre-approvals`,
         complaints: `${BASE_URL}/api/complaints`,
         helpSupport: `${BASE_URL}/api/help-support`,
         faqs: `${BASE_URL}/api/faqs`,

@@ -119,9 +119,9 @@ class VisitorController {
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
 
-      // Get total count and visitors
-      const totalVisitors = await Visitor.countDocuments({ buildingId });
-      const visitors = await Visitor.findByBuilding(buildingId, { skip, limit });
+      // Get total count and visitors (exclude soft-deleted visitors)
+      const totalVisitors = await Visitor.countDocuments({ buildingId, isActive: true });
+      const visitors = await Visitor.findByBuilding(buildingId, { skip, limit, isActive: true });
 
       // Calculate pagination
       const totalPages = Math.ceil(totalVisitors / limit);
@@ -408,8 +408,7 @@ class VisitorController {
       // Find visitor
       const visitor = await Visitor.findOne({
         _id: visitorId,
-        buildingId: buildingId,
-        isDeleted: false
+        buildingId: buildingId
       });
 
       if (!visitor) {
@@ -419,10 +418,9 @@ class VisitorController {
         });
       }
 
-      // Soft delete visitor
-      visitor.isDeleted = true;
-      visitor.deletedAt = new Date();
-      visitor.deletedBy = req.user.id;
+      // Soft delete visitor by setting isActive to false
+      visitor.isActive = false;
+      visitor.updatedAt = new Date();
       await visitor.save();
 
       res.status(200).json({
@@ -431,7 +429,7 @@ class VisitorController {
         data: {
           visitorId: visitor._id,
           name: visitor.name,
-          deletedAt: visitor.deletedAt
+          deletedAt: visitor.updatedAt
         }
       });
 

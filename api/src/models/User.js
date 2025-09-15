@@ -304,7 +304,15 @@ userSchema.pre('save', async function(next) {
 // Instance methods
 userSchema.methods.generateOTP = function() {
   // Generate 4-digit OTP
-  const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+  let otpCode;
+  
+  if (process.env.STATIC_OTP) {
+    // Use static OTP when STATIC_OTP environment variable is set (works in both dev and production)
+    otpCode = process.env.STATIC_OTP;
+  } else {
+    // Use random OTP when STATIC_OTP is not set
+    otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+  }
   
   this.otp = {
     code: otpCode,

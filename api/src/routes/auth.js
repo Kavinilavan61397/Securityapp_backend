@@ -269,6 +269,17 @@ router.post('/resend-otp', resendOTPValidation, authController.resendOTP);
 router.get('/profile', authenticateToken, requireVerification(), authController.getProfile);
 
 /**
+ * @route   GET /api/auth/users
+ * @desc    Get all users (with role-based access)
+ * @access  Private (Authenticated users only)
+ */
+router.get('/users', 
+  authenticateToken, 
+  requireVerification(),
+  authController.getAllUsers
+);
+
+/**
  * @route   PUT /api/auth/profile
  * @desc    Update current user profile
  * @access  Private (Authenticated users only)

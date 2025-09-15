@@ -722,6 +722,80 @@ class AuthController {
   }
 
   /**
+   * Get All Users
+   * GET /api/auth/users
+   * Admins can get all users, users can get users in their building
+   */
+  async getAllUsers(req, res) {
+    try {
+      const currentUserRole = req.user.role;
+      const currentUserBuildingId = req.user.buildingId;
+      
+      // Get query parameters
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+      const role = req.query.role; // Filter by role
+      const isActive = req.query.isActive; // Filter by active status
+
+      // Build query based on user role
+      let query = {};
+      
+      if (currentUserRole === 'SUPER_ADMIN') {
+        // Super admin can see all users
+        if (role) query.role = role;
+        if (isActive !== undefined) query.isActive = isActive === 'true';
+      } else if (currentUserRole === 'BUILDING_ADMIN') {
+        // Building admin can see users in their building
+        query.buildingId = currentUserBuildingId;
+        if (role) query.role = role;
+        if (isActive !== undefined) query.isActive = isActive === 'true';
+      } else {
+        // Other roles can only see users in their building
+        query.buildingId = currentUserBuildingId;
+        query.isActive = true; // Only active users for non-admin roles
+      }
+
+      // Get total count and users
+      const totalUsers = await User.countDocuments(query);
+      const users = await User.find(query)
+        .select('-otp -__v')
+        .populate('buildingId', 'name address')
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 });
+
+      // Calculate pagination
+      const totalPages = Math.ceil(totalUsers / limit);
+      const hasNextPage = page < totalPages;
+      const hasPrevPage = page > 1;
+
+      res.status(200).json({
+        success: true,
+        message: 'Users retrieved successfully',
+        data: {
+          users,
+          pagination: {
+            currentPage: page,
+            totalPages,
+            totalUsers,
+            hasNextPage,
+            hasPrevPage
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get all users error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
    * Delete User Account
    * DELETE /api/auth/account
    * Users can delete their own accounts, admins can delete any account

@@ -720,6 +720,71 @@ class AuthController {
       });
     }
   }
+
+  /**
+   * Delete User Account
+   * DELETE /api/auth/account
+   * Users can delete their own accounts, admins can delete any account
+   */
+  async deleteAccount(req, res) {
+    try {
+      const { userId } = req.params; // Optional: for admin deleting other users
+      const currentUserId = req.user.userId;
+      const currentUserRole = req.user.role;
+
+      // Determine which user to delete
+      let targetUserId;
+      if (userId && (currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'BUILDING_ADMIN')) {
+        // Admin deleting another user
+        targetUserId = userId;
+      } else {
+        // User deleting their own account
+        targetUserId = currentUserId;
+      }
+
+      // Find the user to delete
+      const user = await User.findById(targetUserId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Check if user is already deleted
+      if (!user.isActive) {
+        return res.status(400).json({
+          success: false,
+          message: 'Account is already deleted'
+        });
+      }
+
+      // Soft delete the user account
+      user.isActive = false;
+      user.deletedAt = new Date();
+      user.deletedBy = currentUserId;
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Account deleted successfully',
+        data: {
+          userId: user._id,
+          name: user.name,
+          email: user.email,
+          deletedAt: user.deletedAt
+        }
+      });
+
+    } catch (error) {
+      console.error('Delete account error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
 }
 
 module.exports = new AuthController();

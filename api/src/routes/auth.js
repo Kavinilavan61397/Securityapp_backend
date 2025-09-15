@@ -310,4 +310,26 @@ router.put('/admin/users/:userId/verify',
   authController.verifyUser
 );
 
+/**
+ * @route   DELETE /api/auth/account
+ * @desc    Delete user account (own account)
+ * @access  Private (Authenticated users only)
+ */
+router.delete('/account', 
+  authenticateToken, 
+  requireVerification(),
+  authController.deleteAccount
+);
+
+/**
+ * @route   DELETE /api/auth/admin/users/:userId
+ * @desc    Admin delete user account
+ * @access  Private (Admin only)
+ */
+router.delete('/admin/users/:userId', 
+  authenticateToken, 
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authController.deleteAccount
+);
+
 module.exports = router;

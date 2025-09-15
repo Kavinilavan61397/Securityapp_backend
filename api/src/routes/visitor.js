@@ -228,7 +228,7 @@ router.post('/:buildingId',
   validateParams,
   validateVisitorCreation,
   buildingAccess,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   VisitorController.createVisitor
 );
 
@@ -255,7 +255,7 @@ router.get('/:buildingId',
   validateParams,
   validateQuery,
   buildingAccess,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   VisitorController.getVisitors
 );
 
@@ -263,7 +263,7 @@ router.get('/:buildingId',
 router.get('/:buildingId/:visitorId',
   validateParams,
   buildingAccess,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   VisitorController.getVisitorById
 );
 
@@ -272,7 +272,7 @@ router.put('/:buildingId/:visitorId',
   validateParams,
   validateVisitorUpdate,
   buildingAccess,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   VisitorController.updateVisitor
 );
 

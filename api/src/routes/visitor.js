@@ -276,4 +276,12 @@ router.put('/:buildingId/:visitorId',
   VisitorController.updateVisitor
 );
 
+// DELETE /api/visitors/:buildingId/:visitorId - Delete visitor (soft delete)
+router.delete('/:buildingId/:visitorId',
+  validateParams,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
+  VisitorController.deleteVisitor
+);
+
 module.exports = router;

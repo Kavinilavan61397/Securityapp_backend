@@ -391,6 +391,59 @@ class VisitorController {
       });
     }
   }
+
+  // Delete visitor (soft delete)
+  static async deleteVisitor(req, res) {
+    try {
+      const { visitorId, buildingId } = req.params;
+
+      // Validate building access
+      if (req.user.role !== 'SUPER_ADMIN' && req.user.buildingId.toString() !== buildingId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied to this building'
+        });
+      }
+
+      // Find visitor
+      const visitor = await Visitor.findOne({
+        _id: visitorId,
+        buildingId: buildingId,
+        isDeleted: false
+      });
+
+      if (!visitor) {
+        return res.status(404).json({
+          success: false,
+          message: 'Visitor not found'
+        });
+      }
+
+      // Soft delete visitor
+      visitor.isDeleted = true;
+      visitor.deletedAt = new Date();
+      visitor.deletedBy = req.user.id;
+      await visitor.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Visitor deleted successfully',
+        data: {
+          visitorId: visitor._id,
+          name: visitor.name,
+          deletedAt: visitor.deletedAt
+        }
+      });
+
+    } catch (error) {
+      console.error('Error in deleteVisitor:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = VisitorController;

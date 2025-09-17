@@ -323,7 +323,29 @@ class VisitController {
 
       // Check permissions
       if (role === 'SECURITY') {
-        // Security can only add notes and verify check-in/out
+        // Security can approve/reject visits and add notes
+        if (approvalStatus) {
+          if (!['APPROVED', 'REJECTED', 'CANCELLED'].includes(approvalStatus)) {
+            return res.status(400).json({
+              success: false,
+              message: 'Invalid approval status'
+            });
+          }
+
+          visit.approvalStatus = approvalStatus;
+          visit.approvedBy = userId;
+          visit.approvedAt = new Date();
+
+          if (approvalStatus === 'REJECTED') {
+            visit.rejectionReason = rejectionReason;
+            visit.status = 'CANCELLED';
+          } else if (approvalStatus === 'APPROVED') {
+            visit.status = 'SCHEDULED';
+          } else if (approvalStatus === 'CANCELLED') {
+            visit.status = 'CANCELLED';
+          }
+        }
+        
         if (securityNotes) {
           visit.securityNotes = securityNotes;
           visit.verifiedBySecurity = userId;

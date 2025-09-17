@@ -126,4 +126,28 @@ router.post('/:buildingId/:visitId/checkout',
   VisitController.checkOut
 );
 
+/**
+ * @route   POST /api/visits/:buildingId/scan-qr
+ * @desc    Scan QR code and get visitor details
+ * @access  Private (Security only)
+ */
+router.post('/:buildingId/scan-qr',
+  validateParams[0],
+  buildingAccess,
+  authorizeRoles(['SECURITY']),
+  VisitController.scanQRCode
+);
+
+/**
+ * @route   GET /api/visits/:buildingId/:visitId/qr-code
+ * @desc    Get QR code for a visit
+ * @access  Private (Security, Building Admin, Super Admin)
+ */
+router.get('/:buildingId/:visitId/qr-code',
+  validateParams,
+  buildingAccess,
+  authorizeRoles(['SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
+  VisitController.getQRCode
+);
+
 module.exports = router;

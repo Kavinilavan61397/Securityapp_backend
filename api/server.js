@@ -25,6 +25,10 @@ const faqRoutes = require('./src/routes/faq');
 const flatRoutes = require('./src/routes/flat');
 const househelpRoutes = require('./src/routes/househelp');
 const preApprovalRoutes = require('./src/routes/preApproval');
+// NEW ROUTES - Figma Required
+const visitorCategoryRoutes = require('./src/routes/visitorCategory');
+const securityDashboardRoutes = require('./src/routes/securityDashboard');
+const callRoutes = require('./src/routes/call');
 
 // Initialize Express app
 const app = express();
@@ -129,6 +133,10 @@ app.use('/api/faqs', faqRoutes);
 app.use('/api/flats', flatRoutes);
 app.use('/api/househelp', househelpRoutes);
 app.use('/api/pre-approvals', preApprovalRoutes);
+// NEW ROUTES - Figma Required
+app.use('/api/visitor-categories', visitorCategoryRoutes);
+app.use('/api/security', securityDashboardRoutes);
+app.use('/api/calls', callRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {

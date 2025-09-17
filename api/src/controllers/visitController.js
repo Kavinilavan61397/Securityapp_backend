@@ -522,6 +522,166 @@ class VisitController {
   }
 
   /**
+   * Scan QR Code and get visitor details
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async scanQRCode(req, res) {
+    try {
+      const { qrCode } = req.body;
+      const { buildingId } = req.params;
+
+      if (!qrCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'QR code is required'
+        });
+      }
+
+      // Find visit by QR code
+      const visit = await Visit.findOne({ 
+        qrCode, 
+        buildingId,
+        isActive: true 
+      })
+      .populate('visitorId', 'name phoneNumber email visitorCategory serviceType vehicleNumber')
+      .populate('hostId', 'name phoneNumber flatNumber')
+      .populate('buildingId', 'name address');
+
+      if (!visit) {
+        return res.status(404).json({
+          success: false,
+          message: 'Invalid QR code or visit not found'
+        });
+      }
+
+      // Check if QR code is expired
+      if (new Date() > visit.qrCodeExpiresAt) {
+        return res.status(400).json({
+          success: false,
+          message: 'QR code has expired'
+        });
+      }
+
+      // Check if visit is already checked in
+      if (visit.checkInTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Visitor is already checked in',
+          data: {
+            visit: {
+              visitId: visit.visitId,
+              visitor: visit.visitorId,
+              host: visit.hostId,
+              checkInTime: visit.checkInTime,
+              status: visit.status
+            }
+          }
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'QR code scanned successfully',
+        data: {
+          visit: {
+            visitId: visit.visitId,
+            visitor: {
+              name: visit.visitorId.name,
+              phoneNumber: visit.visitorId.phoneNumber,
+              email: visit.visitorId.email,
+              category: visit.visitorId.visitorCategory,
+              serviceType: visit.visitorId.serviceType,
+              vehicleNumber: visit.visitorId.vehicleNumber
+            },
+            host: {
+              name: visit.hostId.name,
+              phoneNumber: visit.hostId.phoneNumber,
+              flatNumber: visit.hostId.flatNumber
+            },
+            purpose: visit.purpose,
+            scheduledDate: visit.scheduledDate,
+            scheduledTime: visit.scheduledTime,
+            approvalStatus: visit.approvalStatus,
+            status: visit.status,
+            building: visit.buildingId
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Scan QR code error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Get QR Code for a visit
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async getQRCode(req, res) {
+    try {
+      const { buildingId, visitId } = req.params;
+
+      const visit = await Visit.findOne({ 
+        _id: visitId, 
+        buildingId,
+        isActive: true 
+      })
+      .populate('visitorId', 'name phoneNumber')
+      .populate('hostId', 'name flatNumber');
+
+      if (!visit) {
+        return res.status(404).json({
+          success: false,
+          message: 'Visit not found'
+        });
+      }
+
+      // Check if visit is approved
+      if (visit.approvalStatus !== 'APPROVED') {
+        return res.status(400).json({
+          success: false,
+          message: 'Visit must be approved to generate QR code'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          visitId: visit.visitId,
+          qrCode: visit.qrCode,
+          qrCodeExpiresAt: visit.qrCodeExpiresAt,
+          visitor: {
+            name: visit.visitorId.name,
+            phoneNumber: visit.visitorId.phoneNumber
+          },
+          host: {
+            name: visit.hostId.name,
+            flatNumber: visit.hostId.flatNumber
+          },
+          purpose: visit.purpose,
+          scheduledDate: visit.scheduledDate,
+          scheduledTime: visit.scheduledTime
+        }
+      });
+
+    } catch (error) {
+      console.error('Get QR code error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
    * Check-out visitor
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object

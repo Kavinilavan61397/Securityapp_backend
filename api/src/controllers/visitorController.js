@@ -28,7 +28,13 @@ class VisitorController {
         purpose,
         company,
         vehicleNumber,
-        emergencyContact
+        emergencyContact,
+        // NEW FIELDS - Figma Required
+        visitorCategory,
+        serviceType,
+        employeeCode,
+        flatNumbers,
+        vehicleType
       } = req.body;
 
       // Get buildingId from URL params
@@ -56,7 +62,13 @@ class VisitorController {
         company,
         vehicleNumber,
         emergencyContact,
-        buildingId
+        buildingId,
+        // NEW FIELDS - Figma Required
+        visitorCategory: visitorCategory || 'OTHER',
+        serviceType,
+        employeeCode,
+        flatNumbers: flatNumbers ? (Array.isArray(flatNumbers) ? flatNumbers : [flatNumbers]) : [],
+        vehicleType: vehicleType || 'OTHER'
       };
 
       // Remove undefined values

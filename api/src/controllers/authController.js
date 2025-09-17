@@ -157,13 +157,23 @@ class AuthController {
    */
   async login(req, res) {
     try {
-      const { email, phoneNumber, role } = req.body;
+      const { email, phoneNumber, role, employeeCode } = req.body;
 
-      // Find user by email or phone number
-      const user = await User.findOne({
-        $or: [{ email }, { phoneNumber }],
+      // Build query based on provided fields
+      let query = {
         role: role || { $exists: true }
-      });
+      };
+
+      // If employeeCode is provided, search by employeeCode
+      if (employeeCode) {
+        query.employeeCode = employeeCode;
+      } else {
+        // Otherwise search by email or phone number
+        query.$or = [{ email }, { phoneNumber }];
+      }
+
+      // Find user
+      const user = await User.findOne(query);
 
       if (!user) {
         return res.status(401).json({
@@ -210,6 +220,7 @@ class AuthController {
           userId: user._id,
           email: user.email,
           role: user.role,
+          employeeCode: user.employeeCode,
           isVerified: user.isVerified,
           verificationLevel: user.verification?.verificationLevel || 'PENDING',
           emailSent: emailResult.success,

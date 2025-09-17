@@ -66,6 +66,46 @@ const visitorSchema = new mongoose.Schema({
     trim: true,
     maxlength: [200, 'Purpose cannot exceed 200 characters']
   },
+
+  // Visitor Categorization (NEW - Figma Required)
+  visitorCategory: {
+    type: String,
+    required: false,
+    enum: ['CAB_DRIVER', 'DELIVERY_AGENT', 'FLAT_EMPLOYEE', 'OTHER'],
+    default: 'OTHER'
+  },
+
+  serviceType: {
+    type: String,
+    trim: true,
+    maxlength: [50, 'Service type cannot exceed 50 characters']
+  },
+
+  // Employee-specific fields (for FLAT_EMPLOYEE category)
+  employeeCode: {
+    type: String,
+    trim: true,
+    maxlength: [20, 'Employee code cannot exceed 20 characters']
+  },
+
+  flatNumbers: [{
+    type: String,
+    trim: true,
+    maxlength: [20, 'Flat number cannot exceed 20 characters']
+  }],
+
+  // Vehicle Information (for CAB_DRIVER and DELIVERY_AGENT)
+  vehicleNumber: {
+    type: String,
+    trim: true,
+    maxlength: [20, 'Vehicle number cannot exceed 20 characters']
+  },
+
+  vehicleType: {
+    type: String,
+    enum: ['CAR', 'BIKE', 'SCOOTER', 'AUTO', 'OTHER'],
+    default: 'OTHER'
+  },
   
   // Status and Tracking
   isActive: {

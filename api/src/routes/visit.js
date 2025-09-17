@@ -1,5 +1,6 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
+const mongoose = require('mongoose');
 const VisitController = require('../controllers/visitController');
 const { authenticateToken, authorizeRoles, buildingAccess } = require('../middleware/auth');
 
@@ -9,7 +10,13 @@ router.use(authenticateToken);
 // Validation middleware
 const validateParams = [
   param('buildingId').isMongoId().withMessage('Invalid building ID'),
-  param('visitId').isMongoId().withMessage('Invalid visit ID')
+  param('visitId').custom((value) => {
+    // Accept both MongoDB ObjectId and custom visit ID format
+    if (mongoose.Types.ObjectId.isValid(value) || /^VISIT_\d+_[A-Z0-9]+$/.test(value)) {
+      return true;
+    }
+    throw new Error('Invalid visit ID format');
+  }).withMessage('Invalid visit ID format')
 ];
 
 const validateQuery = [

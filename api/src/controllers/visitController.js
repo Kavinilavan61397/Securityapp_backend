@@ -5,6 +5,7 @@ const Building = require('../models/Building');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 class VisitController {
   /**
@@ -238,7 +239,15 @@ class VisitController {
     try {
       const { buildingId, visitId } = req.params;
 
-      const visit = await Visit.findOne({ _id: visitId, buildingId })
+      // Handle both MongoDB ObjectId and custom visit ID
+      const query = { buildingId };
+      if (mongoose.Types.ObjectId.isValid(visitId)) {
+        query._id = visitId;
+      } else {
+        query.visitId = visitId;
+      }
+
+      const visit = await Visit.findOne(query)
         .populate([
           { path: 'visitorId', select: 'name phoneNumber email photo idType idNumber' },
           { path: 'hostId', select: 'name phoneNumber email flatNumber' },
@@ -291,7 +300,15 @@ class VisitController {
       const { approvalStatus, rejectionReason, securityNotes } = req.body;
       const { userId, role } = req.user;
 
-      const visit = await Visit.findOne({ _id: visitId, buildingId })
+      // Handle both MongoDB ObjectId and custom visit ID
+      const query = { buildingId };
+      if (mongoose.Types.ObjectId.isValid(visitId)) {
+        query._id = visitId;
+      } else {
+        query.visitId = visitId;
+      }
+
+      const visit = await Visit.findOne(query)
         .populate([
           { path: 'visitorId', select: 'name phoneNumber email' },
           { path: 'hostId', select: 'name phoneNumber email role' }
@@ -412,7 +429,15 @@ class VisitController {
         });
       }
 
-      const visit = await Visit.findOne({ _id: visitId, buildingId })
+      // Handle both MongoDB ObjectId and custom visit ID
+      const query = { buildingId };
+      if (mongoose.Types.ObjectId.isValid(visitId)) {
+        query._id = visitId;
+      } else {
+        query.visitId = visitId;
+      }
+
+      const visit = await Visit.findOne(query)
         .populate([
           { path: 'visitorId', select: 'name phoneNumber email' },
           { path: 'hostId', select: 'name phoneNumber email role' }
@@ -628,11 +653,15 @@ class VisitController {
     try {
       const { buildingId, visitId } = req.params;
 
-      const visit = await Visit.findOne({ 
-        _id: visitId, 
-        buildingId,
-        isActive: true 
-      })
+      // Handle both MongoDB ObjectId and custom visit ID
+      const query = { buildingId, isActive: true };
+      if (mongoose.Types.ObjectId.isValid(visitId)) {
+        query._id = visitId;
+      } else {
+        query.visitId = visitId;
+      }
+
+      const visit = await Visit.findOne(query)
       .populate('visitorId', 'name phoneNumber')
       .populate('hostId', 'name flatNumber');
 
@@ -700,7 +729,15 @@ class VisitController {
         });
       }
 
-      const visit = await Visit.findOne({ _id: visitId, buildingId })
+      // Handle both MongoDB ObjectId and custom visit ID
+      const query = { buildingId };
+      if (mongoose.Types.ObjectId.isValid(visitId)) {
+        query._id = visitId;
+      } else {
+        query.visitId = visitId;
+      }
+
+      const visit = await Visit.findOne(query)
         .populate([
           { path: 'visitorId', select: 'name phoneNumber email' },
           { path: 'hostId', select: 'name phoneNumber email role' }

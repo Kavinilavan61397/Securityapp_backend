@@ -32,7 +32,7 @@ const visitSchema = new mongoose.Schema({
   
   hostFlatNumber: {
     type: String,
-    required: [true, 'Host flat number is required']
+    required: false
   },
   
   // Visit Details
@@ -80,7 +80,7 @@ const visitSchema = new mongoose.Schema({
   
   scheduledTime: {
     type: String,
-    match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Please enter a valid time in HH:MM format']
+    match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9](\s?(AM|PM))?$/i, 'Please enter a valid time in HH:MM or HH:MM AM/PM format']
   },
   
   expectedDuration: {

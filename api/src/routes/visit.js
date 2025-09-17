@@ -27,11 +27,11 @@ const validateQuery = [
 const validateVisitCreation = [
   body('visitorId').isMongoId().withMessage('Invalid visitor ID'),
   body('hostId').isMongoId().withMessage('Invalid host ID'),
-  body('hostFlatNumber').notEmpty().withMessage('Host flat number is required'),
+  body('hostFlatNumber').optional().trim().isLength({ max: 20 }).withMessage('Host flat number cannot exceed 20 characters'),
   body('purpose').notEmpty().trim().isLength({ min: 5, max: 200 }).withMessage('Purpose must be between 5 and 200 characters'),
   body('visitType').optional().isIn(['PRE_APPROVED', 'WALK_IN', 'SCHEDULED']).withMessage('Invalid visit type'),
   body('scheduledDate').optional().isISO8601().withMessage('Invalid scheduled date format'),
-  body('scheduledTime').optional().matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Invalid time format (HH:MM)'),
+  body('scheduledTime').optional().matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9](\s?(AM|PM))?$/i).withMessage('Invalid time format (HH:MM or HH:MM AM/PM)'),
   body('expectedDuration').optional().isInt({ min: 15, max: 1440 }).withMessage('Expected duration must be between 15 and 1440 minutes'),
   body('vehicleNumber').optional().trim().isLength({ max: 20 }).withMessage('Vehicle number cannot exceed 20 characters'),
   body('vehicleType').optional().isIn(['CAR', 'BIKE', 'SCOOTER', 'AUTO', 'OTHER']).withMessage('Invalid vehicle type')

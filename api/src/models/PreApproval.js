@@ -31,6 +31,11 @@ const preApprovalSchema = new mongoose.Schema({
     trim: true,
     maxlength: [100, 'Email cannot exceed 100 characters']
   },
+  residentMobileNumber: {
+    type: String,
+    trim: true,
+    maxlength: [15, 'Resident mobile number cannot exceed 15 characters']
+  },
   purpose: {
     type: String,
     trim: true,

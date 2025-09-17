@@ -73,7 +73,13 @@ const validateCreatePreApproval = [
     .optional()
     .trim()
     .isLength({ max: 500 })
-    .withMessage('Notes cannot exceed 500 characters')
+    .withMessage('Notes cannot exceed 500 characters'),
+  
+  body('residentMobileNumber')
+    .optional()
+    .trim()
+    .isLength({ min: 10, max: 15 })
+    .withMessage('Resident mobile number must be between 10 and 15 characters')
 ];
 
 const validateUpdatePreApproval = [
@@ -116,7 +122,13 @@ const validateUpdatePreApproval = [
     .optional()
     .trim()
     .isLength({ max: 500 })
-    .withMessage('Notes cannot exceed 500 characters')
+    .withMessage('Notes cannot exceed 500 characters'),
+  
+  body('residentMobileNumber')
+    .optional()
+    .trim()
+    .isLength({ min: 10, max: 15 })
+    .withMessage('Resident mobile number must be between 10 and 15 characters')
 ];
 
 const validateQuery = [

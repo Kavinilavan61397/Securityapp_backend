@@ -53,6 +53,9 @@ const upload = multer({
 // Upload photo
 const uploadPhoto = async (req, res) => {
   try {
+    // Set timeout to prevent Vercel timeout
+    res.setTimeout(25000); // 25 seconds timeout
+    
     const { buildingId } = req.params;
     const { 
       relatedType, 
@@ -62,15 +65,7 @@ const uploadPhoto = async (req, res) => {
       isPublic = false 
     } = req.body;
 
-    // Validate building access
-    const building = await Building.findById(buildingId);
-    if (!building) {
-      return res.status(404).json({
-        success: false,
-        message: 'Building not found'
-      });
-    }
-
+    // Quick validation - no database calls
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -78,7 +73,6 @@ const uploadPhoto = async (req, res) => {
       });
     }
 
-    // Ensure uploadedBy is set (use userId from auth middleware)
     if (!req.user || !req.user.userId) {
       return res.status(401).json({
         success: false,
@@ -86,32 +80,34 @@ const uploadPhoto = async (req, res) => {
       });
     }
 
-    // Create photo record
+    // Create photo record with minimal processing
     const photo = await Photo.create({
       photoId: `PHOTO_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
       filename: req.file.filename,
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
-      uploadedBy: req.user.userId, // Fixed: use userId instead of id
+      uploadedBy: req.user.userId,
       buildingId,
       relatedType: relatedType || 'OTHER',
       relatedId: relatedId || null,
       description: description || 'Photo upload',
       tags: tags || [],
-      isPublic: isPublic || false,
-      metadata: {
-        uploadedAt: new Date(),
-        uploadedBy: req.user.userId, // Fixed: use userId instead of id
-        buildingId,
-        originalName: req.file.originalname
-      }
+      isPublic: isPublic || false
     });
 
     res.status(201).json({
       success: true,
       message: 'Photo uploaded successfully',
-      data: photo
+      data: {
+        photoId: photo.photoId,
+        filename: photo.filename,
+        originalName: photo.originalName,
+        mimeType: photo.mimeType,
+        size: photo.size,
+        uploadedAt: photo.createdAt,
+        photoUrl: `/api/photos/${buildingId}/stream/${photo._id}`
+      }
     });
 
   } catch (error) {

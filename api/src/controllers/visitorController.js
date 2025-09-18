@@ -81,24 +81,6 @@ class VisitorController {
       const visitor = new Visitor(visitorData);
       await visitor.save();
 
-      // Populate photo information if exists
-      let photoInfo = null;
-      if (visitor.photo) {
-        const Photo = require('../models/Photo');
-        const photo = await Photo.findById(visitor.photo);
-        if (photo) {
-          photoInfo = {
-            photoId: photo.photoId,
-            filename: photo.filename,
-            originalName: photo.originalName,
-            mimeType: photo.mimeType,
-            size: photo.size,
-            uploadedAt: photo.createdAt,
-            photoUrl: `/api/photos/${buildingId}/stream/${photo._id}`
-          };
-        }
-      }
-
       res.status(201).json({
         success: true,
         message: 'Visitor created successfully',
@@ -113,7 +95,6 @@ class VisitorController {
           flatNumbers: visitor.flatNumbers,
           vehicleNumber: visitor.vehicleNumber,
           vehicleType: visitor.vehicleType,
-          photo: photoInfo,
           status: visitor.status,
           createdAt: visitor.createdAt
         }

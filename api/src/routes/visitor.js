@@ -2,55 +2,8 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const VisitorController = require('../controllers/visitorController');
 const { authenticateToken, authorizeRoles, buildingAccess } = require('../middleware/auth');
-const multer = require('multer');
-const path = require('path');
-const crypto = require('crypto');
-const fs = require('fs');
-const Photo = require('../models/Photo');
 
 const router = express.Router();
-
-// Configure multer for photo uploads
-const uploadsDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const buildingDir = path.join(uploadsDir, req.params.buildingId);
-    if (!fs.existsSync(buildingDir)) {
-      fs.mkdirSync(buildingDir, { recursive: true });
-    }
-    cb(null, buildingDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = crypto.randomBytes(16).toString('hex') + '_' + Date.now();
-    const filename = uniqueSuffix + path.extname(file.originalname);
-    cb(null, filename);
-  }
-});
-
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    console.log('File filter check:', {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      fieldname: file.fieldname
-    });
-    
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      console.log('File rejected - not an image:', file.mimetype);
-      cb(new Error('Only image files are allowed'), false);
-    }
-  }
-});
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
@@ -288,90 +241,7 @@ router.get('/:buildingId/stats',
   VisitorController.getVisitorStats
 );
 
-// POST /api/visitors/:buildingId/:visitorId/upload-photo - Upload visitor verification photo
-router.post('/:buildingId/:visitorId/upload-photo',
-  validateParams,
-  buildingAccess,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
-  (req, res, next) => {
-    upload.single('photo')(req, res, (err) => {
-      if (err) {
-        return res.status(400).json({
-          success: false,
-          message: err.message
-        });
-      }
-      next();
-    });
-  },
-  async (req, res) => {
-    try {
-      console.log('Photo upload request received:', {
-        buildingId: req.params.buildingId,
-        visitorId: req.params.visitorId,
-        hasFile: !!req.file,
-        fileInfo: req.file ? {
-          filename: req.file.filename,
-          originalName: req.file.originalname,
-          mimetype: req.file.mimetype,
-          size: req.file.size
-        } : null
-      });
-
-      const { buildingId, visitorId } = req.params;
-      
-      if (!req.file) {
-        console.log('No file uploaded');
-        return res.status(400).json({
-          success: false,
-          message: 'No photo file uploaded'
-        });
-      }
-
-      // Create photo record
-      const photo = await Photo.create({
-        photoId: `PHOTO_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        size: req.file.size,
-        uploadedBy: req.user.userId,
-        buildingId,
-        relatedType: 'VISITOR',
-        relatedId: visitorId,
-        description: 'Visitor verification photo',
-        tags: ['visitor', 'verification'],
-        isPublic: false
-      });
-
-      // Update visitor with photo reference
-      const Visitor = require('../models/Visitor');
-      await Visitor.findByIdAndUpdate(visitorId, { photo: photo._id });
-
-      res.status(201).json({
-        success: true,
-        message: 'Visitor photo uploaded successfully',
-        data: {
-          photoId: photo.photoId,
-          filename: photo.filename,
-          originalName: photo.originalName,
-          mimeType: photo.mimeType,
-          size: photo.size,
-          uploadedAt: photo.createdAt,
-          photoUrl: `/api/photos/${buildingId}/stream/${photo._id}`
-        }
-      });
-
-    } catch (error) {
-      console.error('Upload visitor photo error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to upload visitor photo',
-        error: error.message
-      });
-    }
-  }
-);
+// Photo upload functionality removed - will be implemented separately
 
 // GET /api/visitors/:buildingId/search - Search visitors (MUST come before :buildingId route)
 router.get('/:buildingId/search',

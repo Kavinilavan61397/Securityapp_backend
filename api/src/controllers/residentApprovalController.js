@@ -1,0 +1,560 @@
+const ResidentApproval = require('../models/ResidentApproval');
+const Building = require('../models/Building');
+const User = require('../models/User');
+const mongoose = require('mongoose');
+
+/**
+ * Resident Approval Controller
+ * Handles resident approval workflow for admin flow
+ */
+class ResidentApprovalController {
+  
+  /**
+   * Create a new resident approval request
+   * This can be called by anyone (public endpoint for resident registration)
+   */
+  static async createResidentApproval(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const { 
+        name, 
+        email, 
+        phoneNumber, 
+        age, 
+        gender, 
+        flatNumber, 
+        tenantType,
+        idProof,
+        address,
+        emergencyContact,
+        notes
+      } = req.body;
+
+      // Verify building exists
+      const building = await Building.findById(buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Check if resident already exists for this flat
+      const existingResident = await ResidentApproval.findOne({
+        buildingId,
+        flatNumber,
+        status: { $in: ['PENDING', 'APPROVED'] }
+      });
+
+      if (existingResident) {
+        return res.status(400).json({
+          success: false,
+          message: 'A resident approval request already exists for this flat number',
+          data: {
+            existingResident: existingResident.getSummary()
+          }
+        });
+      }
+
+      // Create new resident approval request
+      const residentApproval = new ResidentApproval({
+        name,
+        email,
+        phoneNumber,
+        age: parseInt(age),
+        gender,
+        flatNumber,
+        tenantType,
+        idProof,
+        address,
+        emergencyContact,
+        notes,
+        buildingId
+      });
+
+      await residentApproval.save();
+
+      // Populate building details
+      await residentApproval.populate([
+        { path: 'buildingId', select: 'name address' }
+      ]);
+
+      console.log('✅ Resident approval request created successfully:', residentApproval._id);
+
+      res.status(201).json({
+        success: true,
+        message: 'Resident approval request submitted successfully',
+        data: {
+          residentApproval: residentApproval.getSummary(),
+          building: {
+            id: building._id,
+            name: building.name
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Create resident approval error:', error);
+      
+      if (error.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: 'A resident approval request already exists for this email or phone number',
+          error: 'Duplicate resident request'
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create resident approval request',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Get all resident approval requests for a building
+   * Only BUILDING_ADMIN and SUPER_ADMIN can access
+   */
+  static async getResidentApprovals(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const { status, page = 1, limit = 10 } = req.query;
+      const { userId, role } = req.user;
+
+      // Verify building exists
+      const building = await Building.findById(buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Check permissions
+      if (role === 'BUILDING_ADMIN' && building.adminId.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only view resident approvals in your assigned building.'
+        });
+      }
+
+      // Build query
+      const query = { buildingId, isActive: true };
+      
+      if (status) {
+        query.status = status;
+      }
+
+      // Calculate pagination
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      // Get resident approvals with pagination
+      const residentApprovals = await ResidentApproval.find(query)
+        .populate([
+          { path: 'buildingId', select: 'name address' },
+          { path: 'approvedBy', select: 'name email role' },
+          { path: 'deniedBy', select: 'name email role' }
+        ])
+        .sort({ submittedAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+      // Get total count
+      const totalApprovals = await ResidentApproval.countDocuments(query);
+
+      // Get approval statistics
+      const stats = await ResidentApproval.getApprovalStats(buildingId);
+      const statusCounts = {};
+      stats.forEach(stat => {
+        statusCounts[stat._id] = stat.count;
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Resident approvals retrieved successfully',
+        data: {
+          residentApprovals: residentApprovals.map(approval => approval.getSummary()),
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(totalApprovals / parseInt(limit)),
+            totalApprovals,
+            hasNext: skip + residentApprovals.length < totalApprovals,
+            hasPrev: parseInt(page) > 1
+          },
+          statistics: {
+            PENDING: statusCounts.PENDING || 0,
+            APPROVED: statusCounts.APPROVED || 0,
+            DENIED: statusCounts.DENIED || 0,
+            TOTAL: totalApprovals
+          },
+          building: {
+            id: building._id,
+            name: building.name
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get resident approvals error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve resident approvals',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Get single resident approval by ID
+   */
+  static async getResidentApprovalById(req, res) {
+    try {
+      const { buildingId, approvalId } = req.params;
+      const { userId, role } = req.user;
+
+      // Verify building exists
+      const building = await Building.findById(buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Check permissions
+      if (role === 'BUILDING_ADMIN' && building.adminId.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only view resident approvals in your assigned building.'
+        });
+      }
+
+      // Get resident approval
+      const residentApproval = await ResidentApproval.findOne({ 
+        _id: approvalId, 
+        buildingId 
+      }).populate([
+        { path: 'buildingId', select: 'name address' },
+        { path: 'approvedBy', select: 'name email role' },
+        { path: 'deniedBy', select: 'name email role' }
+      ]);
+
+      if (!residentApproval) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident approval request not found'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Resident approval retrieved successfully',
+        data: {
+          residentApproval: residentApproval.getSummary(),
+          building: {
+            id: building._id,
+            name: building.name
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get resident approval by ID error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve resident approval',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Approve resident
+   * Only BUILDING_ADMIN and SUPER_ADMIN can approve
+   */
+  static async approveResident(req, res) {
+    try {
+      const { buildingId, approvalId } = req.params;
+      const { adminNotes } = req.body;
+      const { userId, role } = req.user;
+
+      // Verify building exists
+      const building = await Building.findById(buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Check permissions
+      if (role === 'BUILDING_ADMIN' && building.adminId.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only approve residents in your assigned building.'
+        });
+      }
+
+      // Get resident approval
+      const residentApproval = await ResidentApproval.findOne({ 
+        _id: approvalId, 
+        buildingId 
+      });
+
+      if (!residentApproval) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident approval request not found'
+        });
+      }
+
+      if (residentApproval.status !== 'PENDING') {
+        return res.status(400).json({
+          success: false,
+          message: `Resident approval request is already ${residentApproval.status.toLowerCase()}`,
+          data: {
+            currentStatus: residentApproval.status
+          }
+        });
+      }
+
+      // Approve resident
+      await residentApproval.approve(userId, adminNotes);
+
+      // Populate details
+      await residentApproval.populate([
+        { path: 'buildingId', select: 'name address' },
+        { path: 'approvedBy', select: 'name email role' }
+      ]);
+
+      console.log('✅ Resident approved successfully:', residentApproval._id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Resident approved successfully',
+        data: {
+          residentApproval: residentApproval.getSummary(),
+          building: {
+            id: building._id,
+            name: building.name
+          },
+          approvedBy: {
+            id: userId,
+            name: req.user.name
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Approve resident error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to approve resident',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Deny resident
+   * Only BUILDING_ADMIN and SUPER_ADMIN can deny
+   */
+  static async denyResident(req, res) {
+    try {
+      const { buildingId, approvalId } = req.params;
+      const { rejectionReason, adminNotes } = req.body;
+      const { userId, role } = req.user;
+
+      // Verify building exists
+      const building = await Building.findById(buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Check permissions
+      if (role === 'BUILDING_ADMIN' && building.adminId.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only deny residents in your assigned building.'
+        });
+      }
+
+      // Get resident approval
+      const residentApproval = await ResidentApproval.findOne({ 
+        _id: approvalId, 
+        buildingId 
+      });
+
+      if (!residentApproval) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident approval request not found'
+        });
+      }
+
+      if (residentApproval.status !== 'PENDING') {
+        return res.status(400).json({
+          success: false,
+          message: `Resident approval request is already ${residentApproval.status.toLowerCase()}`,
+          data: {
+            currentStatus: residentApproval.status
+          }
+        });
+      }
+
+      // Deny resident
+      await residentApproval.deny(userId, rejectionReason, adminNotes);
+
+      // Populate details
+      await residentApproval.populate([
+        { path: 'buildingId', select: 'name address' },
+        { path: 'deniedBy', select: 'name email role' }
+      ]);
+
+      console.log('✅ Resident denied successfully:', residentApproval._id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Resident denied successfully',
+        data: {
+          residentApproval: residentApproval.getSummary(),
+          building: {
+            id: building._id,
+            name: building.name
+          },
+          deniedBy: {
+            id: userId,
+            name: req.user.name
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Deny resident error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to deny resident',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Get pending approvals count
+   */
+  static async getPendingCount(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const { userId, role } = req.user;
+
+      // Verify building exists
+      const building = await Building.findById(buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Check permissions
+      if (role === 'BUILDING_ADMIN' && building.adminId.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only view resident approvals in your assigned building.'
+        });
+      }
+
+      // Get pending count
+      const pendingCount = await ResidentApproval.countDocuments({
+        buildingId,
+        status: 'PENDING',
+        isActive: true
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Pending approvals count retrieved successfully',
+        data: {
+          pendingCount,
+          building: {
+            id: building._id,
+            name: building.name
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get pending count error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve pending count',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Get approval statistics
+   */
+  static async getApprovalStats(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const { userId, role } = req.user;
+
+      // Verify building exists
+      const building = await Building.findById(buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Check permissions
+      if (role === 'BUILDING_ADMIN' && building.adminId.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only view resident approvals in your assigned building.'
+        });
+      }
+
+      // Get statistics
+      const stats = await ResidentApproval.getApprovalStats(buildingId);
+      const statusCounts = {};
+      stats.forEach(stat => {
+        statusCounts[stat._id] = stat.count;
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Approval statistics retrieved successfully',
+        data: {
+          statistics: {
+            PENDING: statusCounts.PENDING || 0,
+            APPROVED: statusCounts.APPROVED || 0,
+            DENIED: statusCounts.DENIED || 0,
+            TOTAL: Object.values(statusCounts).reduce((sum, count) => sum + count, 0)
+          },
+          building: {
+            id: building._id,
+            name: building.name
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get approval stats error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve approval statistics',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+}
+
+module.exports = ResidentApprovalController;

@@ -11,13 +11,13 @@ const visitorSchema = new mongoose.Schema({
   
   phoneNumber: {
     type: String,
-    required: [true, 'Phone number is required'],
+    required: false,
     match: [/^[+]?[\d\s\-\(\)]+$/, 'Please enter a valid phone number']
   },
   
   email: {
     type: String,
-    required: [true, 'Email is required'],
+    required: false,
     lowercase: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },

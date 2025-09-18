@@ -40,13 +40,15 @@ class VisitorController {
       // Get buildingId from URL params
       const { buildingId } = req.params;
 
-      // Check if visitor already exists with same phone/email in the building
-      const existingVisitor = await Visitor.findByPhone(phoneNumber, buildingId);
-      if (existingVisitor) {
-        return res.status(400).json({
-          success: false,
-          message: 'Visitor with this phone number already exists in this building'
-        });
+      // Check if visitor already exists with same phone number in the building (only if phone number provided)
+      if (phoneNumber) {
+        const existingVisitor = await Visitor.findByPhone(phoneNumber, buildingId);
+        if (existingVisitor) {
+          return res.status(400).json({
+            success: false,
+            message: 'Visitor with this phone number already exists in this building'
+          });
+        }
       }
 
       // Create visitor without photo initially

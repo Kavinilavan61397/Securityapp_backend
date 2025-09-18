@@ -19,10 +19,12 @@ const validateVisitorCreation = [
     .withMessage('Name must be between 2 and 100 characters'),
   
   body('phoneNumber')
+    .optional()
     .matches(/^[+]?[\d\s\-\(\)]+$/)
     .withMessage('Please enter a valid phone number'),
   
   body('email')
+    .optional()
     .isEmail()
     .normalizeEmail()
     .withMessage('Please enter a valid email'),

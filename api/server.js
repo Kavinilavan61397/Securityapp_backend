@@ -29,6 +29,11 @@ const preApprovalRoutes = require('./src/routes/preApproval');
 const visitorCategoryRoutes = require('./src/routes/visitorCategory');
 const securityDashboardRoutes = require('./src/routes/securityDashboard');
 const callRoutes = require('./src/routes/call');
+// ADMIN FLOW ROUTES - New Implementation
+const employeeRoutes = require('./src/routes/employee');
+const residentApprovalRoutes = require('./src/routes/residentApproval');
+const adminDashboardRoutes = require('./src/routes/adminDashboard');
+const messageRoutes = require('./src/routes/message');
 
 // Initialize Express app
 const app = express();
@@ -137,6 +142,11 @@ app.use('/api/pre-approvals', preApprovalRoutes);
 app.use('/api/visitor-categories', visitorCategoryRoutes);
 app.use('/api/security', securityDashboardRoutes);
 app.use('/api/calls', callRoutes);
+// ADMIN FLOW ROUTES - New Implementation
+app.use('/api/employees', employeeRoutes);
+app.use('/api/resident-approvals', residentApprovalRoutes);
+app.use('/api/admin-dashboard', adminDashboardRoutes);
+app.use('/api/messages', messageRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {
@@ -163,6 +173,14 @@ app.get('/api', (req, res) => {
         complaints: `${BASE_URL}/api/complaints`,
         helpSupport: `${BASE_URL}/api/help-support`,
         faqs: `${BASE_URL}/api/faqs`,
+        // NEW ADMIN FLOW ENDPOINTS
+        employees: `${BASE_URL}/api/employees`,
+        residentApprovals: `${BASE_URL}/api/resident-approvals`,
+        adminDashboard: `${BASE_URL}/api/admin-dashboard`,
+        messages: `${BASE_URL}/api/messages`,
+        visitorCategories: `${BASE_URL}/api/visitor-categories`,
+        securityDashboard: `${BASE_URL}/api/security`,
+        calls: `${BASE_URL}/api/calls`,
         documentation: `${BASE_URL}/api/docs`
       },
     environment: NODE_ENV

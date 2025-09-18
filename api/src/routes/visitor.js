@@ -37,9 +37,16 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024 // 10MB limit
   },
   fileFilter: (req, file, cb) => {
+    console.log('File filter check:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      fieldname: file.fieldname
+    });
+    
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
+      console.log('File rejected - not an image:', file.mimetype);
       cb(new Error('Only image files are allowed'), false);
     }
   }
@@ -286,12 +293,35 @@ router.post('/:buildingId/:visitorId/upload-photo',
   validateParams,
   buildingAccess,
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
-  upload.single('photo'),
+  (req, res, next) => {
+    upload.single('photo')(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message
+        });
+      }
+      next();
+    });
+  },
   async (req, res) => {
     try {
+      console.log('Photo upload request received:', {
+        buildingId: req.params.buildingId,
+        visitorId: req.params.visitorId,
+        hasFile: !!req.file,
+        fileInfo: req.file ? {
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size
+        } : null
+      });
+
       const { buildingId, visitorId } = req.params;
       
       if (!req.file) {
+        console.log('No file uploaded');
         return res.status(400).json({
           success: false,
           message: 'No photo file uploaded'

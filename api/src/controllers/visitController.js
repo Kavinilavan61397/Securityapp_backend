@@ -669,6 +669,7 @@ class VisitController {
               visitor: visit.visitorId,
               host: visit.hostId,
               checkInTime: visit.checkInTime,
+              checkOutTime: visit.checkOutTime,
               status: visit.status
             }
           }
@@ -699,6 +700,8 @@ class VisitController {
             scheduledTime: visit.scheduledTime,
             approvalStatus: visit.approvalStatus,
             status: visit.status,
+            checkInTime: visit.checkInTime,
+            checkOutTime: visit.checkOutTime,
             building: visit.buildingId
           }
         }

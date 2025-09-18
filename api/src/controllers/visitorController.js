@@ -89,6 +89,12 @@ class VisitorController {
           name: visitor.name,
           phoneNumber: visitor.phoneNumber,
           email: visitor.email,
+          visitorCategory: visitor.visitorCategory,
+          serviceType: visitor.serviceType,
+          employeeCode: visitor.employeeCode,
+          flatNumbers: visitor.flatNumbers,
+          vehicleNumber: visitor.vehicleNumber,
+          vehicleType: visitor.vehicleType,
           status: visitor.status,
           createdAt: visitor.createdAt
         }

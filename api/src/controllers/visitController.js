@@ -115,22 +115,27 @@ class VisitController {
 
       // Create notification for host
       if (visitType !== 'PRE_APPROVED') {
-        await Notification.create({
-          notificationId: `NOTIF_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
-          recipientId: hostId,
-          recipientRole: host.role,
-          buildingId,
-          title: 'New Visit Request',
-          message: `${visitor.name} has requested to visit you`,
-          type: 'VISIT_APPROVAL_REQUEST',
-          category: 'INFO',
-          priority: 'MEDIUM',
-          relatedVisitId: visit._id,
-          relatedVisitorId: visitorId,
-          actionRequired: true,
-          actionType: 'APPROVE',
-          deliveryChannels: { inApp: true, email: true, sms: false }
-        });
+        try {
+          await Notification.create({
+            notificationId: `NOTIF_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+            recipientId: hostId,
+            recipientRole: host.role || 'RESIDENT',
+            buildingId,
+            title: 'New Visit Request',
+            message: `${visitor.name} has requested to visit you`,
+            type: 'VISIT_APPROVAL_REQUEST',
+            category: 'INFO',
+            priority: 'MEDIUM',
+            relatedVisitId: visit._id,
+            relatedVisitorId: visitorId,
+            actionRequired: true,
+            actionType: 'APPROVE',
+            deliveryChannels: { inApp: true, email: true, sms: false }
+          });
+        } catch (notificationError) {
+          console.error('Host notification creation failed:', notificationError);
+          // Continue even if notification fails
+        }
       }
 
       res.status(201).json({
@@ -390,29 +395,39 @@ class VisitController {
 
         if (approvalStatus === 'APPROVED') {
           // Notify host only (visitors don't have accounts for in-app notifications)
-          await Notification.create({
-            ...notificationData,
-            recipientId: visit.hostId._id,
-            recipientRole: visit.hostId.role,
-            title: 'Visit Approved',
-            message: `${visit.visitorId.name}'s visit has been approved`,
-            type: 'VISIT_APPROVED',
-            category: 'SUCCESS',
-            priority: 'MEDIUM'
-          });
+          try {
+            await Notification.create({
+              ...notificationData,
+              recipientId: visit.hostId._id,
+              recipientRole: visit.hostId.role || 'RESIDENT',
+              title: 'Visit Approved',
+              message: `${visit.visitorId.name}'s visit has been approved`,
+              type: 'VISIT_APPROVED',
+              category: 'SUCCESS',
+              priority: 'MEDIUM'
+            });
+          } catch (notificationError) {
+            console.error('Host notification creation failed:', notificationError);
+            // Continue even if notification fails
+          }
         } else if (approvalStatus === 'REJECTED') {
           // Notify host only (visitors don't have accounts for in-app notifications)
-          await Notification.create({
-            ...notificationData,
-            recipientId: visit.hostId._id,
-            recipientRole: visit.hostId.role,
-            title: 'Visit Rejected',
-            message: `${visit.visitorId.name}'s visit has been rejected`,
-            type: 'VISIT_REJECTED',
-            category: 'WARNING',
-            priority: 'HIGH',
-            metadata: { rejectionReason }
-          });
+          try {
+            await Notification.create({
+              ...notificationData,
+              recipientId: visit.hostId._id,
+              recipientRole: visit.hostId.role || 'RESIDENT',
+              title: 'Visit Rejected',
+              message: `${visit.visitorId.name}'s visit has been rejected`,
+              type: 'VISIT_REJECTED',
+              category: 'WARNING',
+              priority: 'HIGH',
+              metadata: { rejectionReason }
+            });
+          } catch (notificationError) {
+            console.error('Host notification creation failed:', notificationError);
+            // Continue even if notification fails
+          }
         }
       }
 
@@ -526,30 +541,40 @@ class VisitController {
       };
 
       // Notify host
-      await Notification.create({
-        ...notificationData,
-        recipientId: visit.hostId._id,
-        recipientRole: visit.hostId.role,
-        title: 'Visitor Checked In',
-        message: `${visit.visitorId.name} has checked in`,
-        type: 'VISITOR_ARRIVAL',
-        category: 'INFO',
-        priority: 'MEDIUM'
-      });
-
-      // Notify building admin
-      const buildingAdmin = await User.findOne({ buildingId, role: 'BUILDING_ADMIN' });
-      if (buildingAdmin) {
+      try {
         await Notification.create({
           ...notificationData,
-          recipientId: buildingAdmin._id,
-          recipientRole: 'BUILDING_ADMIN',
+          recipientId: visit.hostId._id,
+          recipientRole: visit.hostId.role || 'RESIDENT',
           title: 'Visitor Checked In',
-          message: `${visit.visitorId.name} has checked in to ${visit.hostId.name}`,
+          message: `${visit.visitorId.name} has checked in`,
           type: 'VISITOR_ARRIVAL',
           category: 'INFO',
-          priority: 'LOW'
+          priority: 'MEDIUM'
         });
+      } catch (notificationError) {
+        console.error('Host notification creation failed:', notificationError);
+        // Continue with check-in even if notification fails
+      }
+
+      // Notify building admin
+      try {
+        const buildingAdmin = await User.findOne({ buildingId, role: 'BUILDING_ADMIN' });
+        if (buildingAdmin) {
+          await Notification.create({
+            ...notificationData,
+            recipientId: buildingAdmin._id,
+            recipientRole: 'BUILDING_ADMIN',
+            title: 'Visitor Checked In',
+            message: `${visit.visitorId.name} has checked in to ${visit.hostId.name}`,
+            type: 'VISITOR_ARRIVAL',
+            category: 'INFO',
+            priority: 'LOW'
+          });
+        }
+      } catch (notificationError) {
+        console.error('Building admin notification creation failed:', notificationError);
+        // Continue with check-in even if notification fails
       }
 
       res.status(200).json({
@@ -810,30 +835,40 @@ class VisitController {
       };
 
       // Notify host
-      await Notification.create({
-        ...notificationData,
-        recipientId: visit.hostId._id,
-        recipientRole: visit.hostId.role,
-        title: 'Visitor Checked Out',
-        message: `${visit.visitorId.name} has checked out`,
-        type: 'VISITOR_DEPARTURE',
-        category: 'INFO',
-        priority: 'MEDIUM'
-      });
-
-      // Notify building admin
-      const buildingAdmin = await User.findOne({ buildingId, role: 'BUILDING_ADMIN' });
-      if (buildingAdmin) {
+      try {
         await Notification.create({
           ...notificationData,
-          recipientId: buildingAdmin._id,
-          recipientRole: 'BUILDING_ADMIN',
+          recipientId: visit.hostId._id,
+          recipientRole: visit.hostId.role || 'RESIDENT',
           title: 'Visitor Checked Out',
-          message: `${visit.visitorId.name} has checked out from ${visit.hostId.name}`,
+          message: `${visit.visitorId.name} has checked out`,
           type: 'VISITOR_DEPARTURE',
           category: 'INFO',
-          priority: 'LOW'
+          priority: 'MEDIUM'
         });
+      } catch (notificationError) {
+        console.error('Host notification creation failed:', notificationError);
+        // Continue with check-out even if notification fails
+      }
+
+      // Notify building admin
+      try {
+        const buildingAdmin = await User.findOne({ buildingId, role: 'BUILDING_ADMIN' });
+        if (buildingAdmin) {
+          await Notification.create({
+            ...notificationData,
+            recipientId: buildingAdmin._id,
+            recipientRole: 'BUILDING_ADMIN',
+            title: 'Visitor Checked Out',
+            message: `${visit.visitorId.name} has checked out from ${visit.hostId.name}`,
+            type: 'VISITOR_DEPARTURE',
+            category: 'INFO',
+            priority: 'LOW'
+          });
+        }
+      } catch (notificationError) {
+        console.error('Building admin notification creation failed:', notificationError);
+        // Continue with check-out even if notification fails
       }
 
       res.status(200).json({

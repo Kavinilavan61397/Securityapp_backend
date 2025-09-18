@@ -202,7 +202,14 @@ class VisitController {
 
       const visits = await Visit.find(query)
         .populate([
-          { path: 'visitorId', select: 'name phoneNumber email photo' },
+          { 
+            path: 'visitorId', 
+            select: 'name phoneNumber email photo visitorCategory serviceType employeeCode flatNumbers vehicleNumber vehicleType',
+            populate: {
+              path: 'photo',
+              select: 'photoId filename originalName mimeType size createdAt'
+            }
+          },
           { path: 'hostId', select: 'name phoneNumber email' },
           { path: 'approvedBy', select: 'name' },
           { path: 'verifiedBySecurity', select: 'name' }
@@ -214,11 +221,20 @@ class VisitController {
       const totalVisits = await Visit.countDocuments(query);
       const totalPages = Math.ceil(totalVisits / limit);
 
+      // Add photo URLs to visitor data
+      const visitsWithPhotos = visits.map(visit => {
+        const visitObj = visit.toObject();
+        if (visitObj.visitorId && visitObj.visitorId.photo) {
+          visitObj.visitorId.photoUrl = `/api/photos/${buildingId}/stream/${visitObj.visitorId.photo._id}`;
+        }
+        return visitObj;
+      });
+
       res.status(200).json({
         success: true,
         message: 'Visits retrieved successfully',
         data: {
-          visits,
+          visits: visitsWithPhotos,
           pagination: {
             currentPage: parseInt(page),
             totalPages,

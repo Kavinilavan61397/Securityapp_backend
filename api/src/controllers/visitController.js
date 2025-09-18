@@ -132,6 +132,10 @@ class VisitController {
             actionType: 'APPROVE',
             deliveryChannels: { inApp: true, email: true, sms: false }
           });
+          
+          // Update notification status
+          visit.notificationsSent.host = true;
+          await visit.save();
         } catch (notificationError) {
           console.error('Host notification creation failed:', notificationError);
           // Continue even if notification fails
@@ -406,6 +410,9 @@ class VisitController {
               category: 'SUCCESS',
               priority: 'MEDIUM'
             });
+            
+            // Update notification status
+            visit.notificationsSent.host = true;
           } catch (notificationError) {
             console.error('Host notification creation failed:', notificationError);
             // Continue even if notification fails
@@ -424,11 +431,17 @@ class VisitController {
               priority: 'HIGH',
               metadata: { rejectionReason }
             });
+            
+            // Update notification status
+            visit.notificationsSent.host = true;
           } catch (notificationError) {
             console.error('Host notification creation failed:', notificationError);
             // Continue even if notification fails
           }
         }
+        
+        // Save the updated notification status
+        await visit.save();
       }
 
       res.status(200).json({
@@ -552,6 +565,10 @@ class VisitController {
           category: 'INFO',
           priority: 'MEDIUM'
         });
+        
+        // Update notification status
+        visit.notificationsSent.host = true;
+        visit.notificationsSent.checkIn = true;
       } catch (notificationError) {
         console.error('Host notification creation failed:', notificationError);
         // Continue with check-in even if notification fails
@@ -571,11 +588,17 @@ class VisitController {
             category: 'INFO',
             priority: 'LOW'
           });
+          
+          // Update notification status
+          visit.notificationsSent.admin = true;
         }
       } catch (notificationError) {
         console.error('Building admin notification creation failed:', notificationError);
         // Continue with check-in even if notification fails
       }
+      
+      // Save the updated notification status
+      await visit.save();
 
       res.status(200).json({
         success: true,
@@ -846,6 +869,10 @@ class VisitController {
           category: 'INFO',
           priority: 'MEDIUM'
         });
+        
+        // Update notification status
+        visit.notificationsSent.host = true;
+        visit.notificationsSent.checkOut = true;
       } catch (notificationError) {
         console.error('Host notification creation failed:', notificationError);
         // Continue with check-out even if notification fails
@@ -865,11 +892,17 @@ class VisitController {
             category: 'INFO',
             priority: 'LOW'
           });
+          
+          // Update notification status
+          visit.notificationsSent.admin = true;
         }
       } catch (notificationError) {
         console.error('Building admin notification creation failed:', notificationError);
         // Continue with check-out even if notification fails
       }
+      
+      // Save the updated notification status
+      await visit.save();
 
       res.status(200).json({
         success: true,

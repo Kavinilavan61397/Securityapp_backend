@@ -58,7 +58,7 @@ const photoSchema = new mongoose.Schema({
   // Photo Type and Usage
   relatedType: {
     type: String,
-    required: [true, 'Related type is required'],
+    required: false, // Made optional since it has a default value
     enum: [
       'VISITOR',
       'VISIT',
@@ -72,7 +72,7 @@ const photoSchema = new mongoose.Schema({
   // Associated Entities
   relatedId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: [true, 'Related ID is required']
+    required: false // Made optional for easier photo uploads
   },
   
   description: {

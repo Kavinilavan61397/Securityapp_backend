@@ -95,11 +95,11 @@ const uploadPhoto = async (req, res) => {
       size: req.file.size,
       uploadedBy: req.user.userId, // Fixed: use userId instead of id
       buildingId,
-      relatedType,
-      relatedId,
-      description,
-      tags,
-      isPublic,
+      relatedType: relatedType || 'OTHER',
+      relatedId: relatedId || null,
+      description: description || 'Photo upload',
+      tags: tags || [],
+      isPublic: isPublic || false,
       metadata: {
         uploadedAt: new Date(),
         uploadedBy: req.user.userId, // Fixed: use userId instead of id

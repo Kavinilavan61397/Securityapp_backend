@@ -573,7 +573,7 @@ class ResidentApprovalController {
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve approval statistics',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+        error: error.message // Show actual error for debugging
       });
     }
   }

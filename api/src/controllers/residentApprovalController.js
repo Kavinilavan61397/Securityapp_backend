@@ -544,29 +544,30 @@ class ResidentApprovalController {
       const stats = await ResidentApproval.getApprovalStats(buildingId);
       const statusCounts = {};
       
-      console.log('Approval stats debug:', {
-        buildingId,
-        stats: stats,
-        statsType: typeof stats,
-        isArray: Array.isArray(stats)
-      });
-      
       // Handle case where stats might be empty or null
       if (stats && Array.isArray(stats)) {
         stats.forEach(stat => {
           statusCounts[stat._id] = stat.count;
         });
       }
+      
+      // Ensure we have default values even if no data exists
+      const defaultStats = {
+        PENDING: 0,
+        APPROVED: 0,
+        DENIED: 0,
+        TOTAL: 0
+      };
 
       res.status(200).json({
         success: true,
         message: 'Approval statistics retrieved successfully',
         data: {
           statistics: {
-            PENDING: statusCounts.PENDING || 0,
-            APPROVED: statusCounts.APPROVED || 0,
-            DENIED: statusCounts.DENIED || 0,
-            TOTAL: Object.values(statusCounts).reduce((sum, count) => sum + count, 0)
+            PENDING: statusCounts.PENDING || defaultStats.PENDING,
+            APPROVED: statusCounts.APPROVED || defaultStats.APPROVED,
+            DENIED: statusCounts.DENIED || defaultStats.DENIED,
+            TOTAL: Object.values(statusCounts).reduce((sum, count) => sum + count, 0) || defaultStats.TOTAL
           },
           building: {
             id: building._id,

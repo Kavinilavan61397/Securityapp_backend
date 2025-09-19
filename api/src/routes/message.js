@@ -231,6 +231,15 @@ router.post(
   MessageController.postMessage
 );
 
+// Get previous posts (MUST be before /:buildingId routes)
+router.get(
+  '/:buildingId/previous-posts',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  validateParams[0], // buildingId validation
+  MessageController.getPreviousPosts
+);
+
 // Get all messages for a building
 router.get(
   '/:buildingId',
@@ -269,13 +278,5 @@ router.delete(
   MessageController.deleteMessage
 );
 
-// Get previous posts
-router.get(
-  '/:buildingId/previous-posts',
-  authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
-  validateParams[0], // buildingId validation
-  MessageController.getPreviousPosts
-);
 
 module.exports = router;

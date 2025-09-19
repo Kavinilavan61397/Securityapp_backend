@@ -170,6 +170,24 @@ router.post(
   ResidentApprovalController.createResidentApproval
 );
 
+// Get pending approvals count (MUST be before /:buildingId routes)
+router.get(
+  '/:buildingId/pending/count',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  validateParams[0], // buildingId validation
+  ResidentApprovalController.getPendingCount
+);
+
+// Get approval statistics (MUST be before /:buildingId routes)
+router.get(
+  '/:buildingId/stats',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  validateParams[0], // buildingId validation
+  ResidentApprovalController.getApprovalStats
+);
+
 // Get all resident approvals for a building (Admin only)
 router.get(
   '/:buildingId',
@@ -209,22 +227,5 @@ router.post(
   ResidentApprovalController.denyResident
 );
 
-// Get pending approvals count (Admin only)
-router.get(
-  '/:buildingId/pending/count',
-  authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
-  validateParams[0], // buildingId validation
-  ResidentApprovalController.getPendingCount
-);
-
-// Get approval statistics (Admin only)
-router.get(
-  '/:buildingId/stats',
-  authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
-  validateParams[0], // buildingId validation
-  ResidentApprovalController.getApprovalStats
-);
 
 module.exports = router;

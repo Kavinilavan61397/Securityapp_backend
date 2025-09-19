@@ -223,6 +223,22 @@ const validateQuery = [
 
 // Routes
 
+// Get employee categories (MUST be before /:buildingId routes)
+router.get(
+  '/categories',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  EmployeeController.getEmployeeCategories
+);
+
+// Generate employee code (MUST be before /:buildingId routes)
+router.get(
+  '/generate-code',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  EmployeeController.generateEmployeeCode
+);
+
 // Create employee
 router.post(
   '/:buildingId',
@@ -269,22 +285,6 @@ router.delete(
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
   validateParams,
   EmployeeController.deleteEmployee
-);
-
-// Get employee categories
-router.get(
-  '/categories',
-  authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
-  EmployeeController.getEmployeeCategories
-);
-
-// Generate employee code
-router.get(
-  '/generate-code',
-  authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
-  EmployeeController.generateEmployeeCode
 );
 
 module.exports = router;

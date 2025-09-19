@@ -2,6 +2,7 @@ const Message = require('../models/Message');
 const Building = require('../models/Building');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const mongoose = require('mongoose');
 
 /**
  * Message Controller

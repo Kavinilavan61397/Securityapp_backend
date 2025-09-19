@@ -79,7 +79,13 @@ const validateCreatePreApproval = [
     .optional()
     .trim()
     .isLength({ min: 10, max: 15 })
-    .withMessage('Resident mobile number must be between 10 and 15 characters')
+    .withMessage('Resident mobile number must be between 10 and 15 characters'),
+  
+  body('flatNumber')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Flat number cannot exceed 20 characters')
 ];
 
 const validateUpdatePreApproval = [
@@ -128,7 +134,13 @@ const validateUpdatePreApproval = [
     .optional()
     .trim()
     .isLength({ min: 10, max: 15 })
-    .withMessage('Resident mobile number must be between 10 and 15 characters')
+    .withMessage('Resident mobile number must be between 10 and 15 characters'),
+  
+  body('flatNumber')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Flat number cannot exceed 20 characters')
 ];
 
 const validateQuery = [

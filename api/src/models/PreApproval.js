@@ -36,6 +36,10 @@ const preApprovalSchema = new mongoose.Schema({
     trim: true,
     maxlength: [15, 'Resident mobile number cannot exceed 15 characters']
   },
+  flatNumber: {
+    type: String,
+    trim: true
+  },
   purpose: {
     type: String,
     trim: true,

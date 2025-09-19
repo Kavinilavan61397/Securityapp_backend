@@ -6,7 +6,7 @@ const createPreApproval = async (req, res) => {
   try {
     const { buildingId } = req.params;
     const userId = req.user.id || req.user.userId;
-    const { visitorName, visitorPhone, visitorEmail, purpose, expectedDate, expectedTime, notes, residentMobileNumber } = req.body;
+    const { visitorName, visitorPhone, visitorEmail, purpose, expectedDate, expectedTime, notes, residentMobileNumber, flatNumber } = req.body;
 
     // Verify building exists
     const building = await Building.findById(buildingId);
@@ -27,6 +27,7 @@ const createPreApproval = async (req, res) => {
       expectedTime,
       notes,
       residentMobileNumber,
+      flatNumber,
       residentId: userId,
       buildingId
     });
@@ -45,6 +46,7 @@ const createPreApproval = async (req, res) => {
         expectedDate: preApproval.expectedDate,
         expectedTime: preApproval.expectedTime,
         residentMobileNumber: preApproval.residentMobileNumber,
+        flatNumber: preApproval.flatNumber,
         status: preApproval.status,
         fullIdentification: preApproval.fullIdentification,
         resident: {
@@ -105,6 +107,7 @@ const getPreApprovals = async (req, res) => {
           expectedDate: pa.expectedDate,
           expectedTime: pa.expectedTime,
           residentMobileNumber: pa.residentMobileNumber,
+          flatNumber: pa.flatNumber,
           status: pa.status,
           fullIdentification: pa.fullIdentification,
           createdAt: pa.createdAt,
@@ -162,6 +165,7 @@ const getPreApproval = async (req, res) => {
         expectedDate: preApproval.expectedDate,
         expectedTime: preApproval.expectedTime,
         residentMobileNumber: preApproval.residentMobileNumber,
+        flatNumber: preApproval.flatNumber,
         notes: preApproval.notes,
         status: preApproval.status,
         fullIdentification: preApproval.fullIdentification,
@@ -185,7 +189,7 @@ const updatePreApproval = async (req, res) => {
   try {
     const { buildingId, preApprovalId } = req.params;
     const userId = req.user.id || req.user.userId;
-    const { visitorName, visitorPhone, visitorEmail, purpose, expectedDate, expectedTime, notes, residentMobileNumber } = req.body;
+    const { visitorName, visitorPhone, visitorEmail, purpose, expectedDate, expectedTime, notes, residentMobileNumber, flatNumber } = req.body;
 
     const preApproval = await PreApproval.findOne({
       _id: preApprovalId,
@@ -218,6 +222,7 @@ const updatePreApproval = async (req, res) => {
     if (expectedTime !== undefined) preApproval.expectedTime = expectedTime;
     if (notes !== undefined) preApproval.notes = notes;
     if (residentMobileNumber !== undefined) preApproval.residentMobileNumber = residentMobileNumber;
+    if (flatNumber !== undefined) preApproval.flatNumber = flatNumber;
 
     await preApproval.save();
 
@@ -233,6 +238,7 @@ const updatePreApproval = async (req, res) => {
         expectedDate: preApproval.expectedDate,
         expectedTime: preApproval.expectedTime,
         residentMobileNumber: preApproval.residentMobileNumber,
+        flatNumber: preApproval.flatNumber,
         status: preApproval.status,
         fullIdentification: preApproval.fullIdentification
       }

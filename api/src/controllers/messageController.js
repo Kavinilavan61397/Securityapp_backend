@@ -534,11 +534,14 @@ class MessageController {
       // Get recent messages
       const previousPosts = await Message.getRecent(buildingId, parseInt(limit));
 
+      // Filter out messages with null references
+      const validPosts = previousPosts.filter(msg => msg.postedBy);
+
       res.status(200).json({
         success: true,
         message: 'Previous posts retrieved successfully',
         data: {
-          previousPosts: previousPosts.map(msg => msg.getSummary()),
+          previousPosts: validPosts.map(msg => msg.getSummary()),
           building: {
             id: building._id,
             name: building.name

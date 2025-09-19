@@ -543,9 +543,13 @@ class ResidentApprovalController {
       // Get statistics
       const stats = await ResidentApproval.getApprovalStats(buildingId);
       const statusCounts = {};
-      stats.forEach(stat => {
-        statusCounts[stat._id] = stat.count;
-      });
+      
+      // Handle case where stats might be empty or null
+      if (stats && Array.isArray(stats)) {
+        stats.forEach(stat => {
+          statusCounts[stat._id] = stat.count;
+        });
+      }
 
       res.status(200).json({
         success: true,

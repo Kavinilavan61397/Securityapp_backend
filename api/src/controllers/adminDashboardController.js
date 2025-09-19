@@ -354,8 +354,8 @@ class AdminDashboardController {
         .sort({ createdAt: -1 })
         .limit(parseInt(limit));
 
-      // Filter out visits where visitorId is null (due to category filter)
-      const filteredActivity = recentActivity.filter(visit => visit.visitorId);
+      // Filter out visits where visitorId or hostId is null
+      const filteredActivity = recentActivity.filter(visit => visit.visitorId && visit.hostId);
 
       res.status(200).json({
         success: true,

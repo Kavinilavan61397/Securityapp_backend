@@ -233,17 +233,20 @@ class AdminDashboardController {
       ])
       .sort({ createdAt: -1 });
 
+      // Filter out visits with null references
+      const validVisits = todayVisits.filter(visit => visit.visitorId && visit.hostId);
+
       // Group visits by status
       const visitsByStatus = {
-        SCHEDULED: todayVisits.filter(visit => visit.status === 'SCHEDULED'),
-        IN_PROGRESS: todayVisits.filter(visit => visit.status === 'IN_PROGRESS'),
-        COMPLETED: todayVisits.filter(visit => visit.status === 'COMPLETED'),
-        CANCELLED: todayVisits.filter(visit => visit.status === 'CANCELLED')
+        SCHEDULED: validVisits.filter(visit => visit.status === 'SCHEDULED'),
+        IN_PROGRESS: validVisits.filter(visit => visit.status === 'IN_PROGRESS'),
+        COMPLETED: validVisits.filter(visit => visit.status === 'COMPLETED'),
+        CANCELLED: validVisits.filter(visit => visit.status === 'CANCELLED')
       };
 
       // Get visit statistics
       const visitStats = {
-        total: todayVisits.length,
+        total: validVisits.length,
         scheduled: visitsByStatus.SCHEDULED.length,
         inProgress: visitsByStatus.IN_PROGRESS.length,
         completed: visitsByStatus.COMPLETED.length,
@@ -254,7 +257,7 @@ class AdminDashboardController {
         success: true,
         message: 'Today\'s visits retrieved successfully',
         data: {
-          visits: todayVisits.map(visit => ({
+          visits: validVisits.map(visit => ({
             id: visit._id,
             visitId: visit.visitId,
             visitor: {

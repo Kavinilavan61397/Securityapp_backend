@@ -83,7 +83,45 @@ const validateVisitorCreation = [
     .optional()
     .trim()
     .isLength({ max: 50 })
-    .withMessage('Relationship cannot exceed 50 characters')
+    .withMessage('Relationship cannot exceed 50 characters'),
+  
+  // Flat Numbers validation (for FLAT_EMPLOYEE category)
+  body('flatNumbers')
+    .optional()
+    .isArray()
+    .withMessage('Flat numbers must be an array'),
+  
+  body('flatNumbers.*')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Each flat number cannot exceed 20 characters'),
+  
+  // Visitor Category validation
+  body('visitorCategory')
+    .optional()
+    .isIn(['CAB_DRIVER', 'DELIVERY_AGENT', 'FLAT_EMPLOYEE', 'OTHER'])
+    .withMessage('Invalid visitor category'),
+  
+  // Service Type validation
+  body('serviceType')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Service type cannot exceed 50 characters'),
+  
+  // Employee Code validation (for FLAT_EMPLOYEE category)
+  body('employeeCode')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Employee code cannot exceed 20 characters'),
+  
+  // Vehicle Type validation
+  body('vehicleType')
+    .optional()
+    .isIn(['CAR', 'BIKE', 'SCOOTER', 'AUTO', 'OTHER'])
+    .withMessage('Invalid vehicle type')
 ];
 
 const validateVisitorUpdate = [
@@ -148,7 +186,45 @@ const validateVisitorUpdate = [
     .optional()
     .trim()
     .isLength({ max: 50 })
-    .withMessage('Relationship cannot exceed 50 characters')
+    .withMessage('Relationship cannot exceed 50 characters'),
+  
+  // Flat Numbers validation (for FLAT_EMPLOYEE category)
+  body('flatNumbers')
+    .optional()
+    .isArray()
+    .withMessage('Flat numbers must be an array'),
+  
+  body('flatNumbers.*')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Each flat number cannot exceed 20 characters'),
+  
+  // Visitor Category validation
+  body('visitorCategory')
+    .optional()
+    .isIn(['CAB_DRIVER', 'DELIVERY_AGENT', 'FLAT_EMPLOYEE', 'OTHER'])
+    .withMessage('Invalid visitor category'),
+  
+  // Service Type validation
+  body('serviceType')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Service type cannot exceed 50 characters'),
+  
+  // Employee Code validation (for FLAT_EMPLOYEE category)
+  body('employeeCode')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Employee code cannot exceed 20 characters'),
+  
+  // Vehicle Type validation
+  body('vehicleType')
+    .optional()
+    .isIn(['CAR', 'BIKE', 'SCOOTER', 'AUTO', 'OTHER'])
+    .withMessage('Invalid vehicle type')
 ];
 
 const validateParams = [

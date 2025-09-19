@@ -536,6 +536,13 @@ class MessageController {
 
       // Filter out messages with null references
       const validPosts = previousPosts.filter(msg => msg.postedBy);
+      
+      console.log('Previous posts debug:', {
+        buildingId,
+        limit: parseInt(limit),
+        totalPosts: previousPosts.length,
+        validPosts: validPosts.length
+      });
 
       res.status(200).json({
         success: true,

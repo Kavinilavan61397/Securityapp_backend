@@ -382,7 +382,7 @@ class AdminDashboardController {
             checkInTime: visit.checkInTime,
             checkOutTime: visit.checkOutTime,
             createdAt: visit.createdAt,
-            timeAgo: this.getTimeAgo(visit.createdAt)
+            timeAgo: AdminDashboardController.getTimeAgo(visit.createdAt)
           })),
           building: {
             id: building._id,

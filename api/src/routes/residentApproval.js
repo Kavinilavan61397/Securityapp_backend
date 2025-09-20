@@ -207,21 +207,21 @@ router.get(
   ResidentApprovalController.getResidentApprovalById
 );
 
-// Approve resident (Admin only)
+// Approve resident (Admin/Security)
 router.post(
   '/:buildingId/:approvalId/approve',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
   validateParams,
   validateApproveResident,
   ResidentApprovalController.approveResident
 );
 
-// Deny resident (Admin only)
+// Deny resident (Admin/Security)
 router.post(
   '/:buildingId/:approvalId/deny',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
   validateParams,
   validateDenyResident,
   ResidentApprovalController.denyResident

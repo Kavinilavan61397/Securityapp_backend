@@ -213,4 +213,32 @@ router.delete('/:buildingId/:preApprovalId',
   deletePreApproval
 );
 
+// POST /api/pre-approvals/:buildingId/:preApprovalId/approve - Approve pre-approval (Admin/Security)
+router.post('/:buildingId/:preApprovalId/approve',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  validateBuildingId,
+  validatePreApprovalId,
+  handleValidationErrors,
+  (req, res) => {
+    // Import the controller function dynamically to avoid circular dependencies
+    const { approvePreApproval } = require('../controllers/preApprovalController');
+    approvePreApproval(req, res);
+  }
+);
+
+// POST /api/pre-approvals/:buildingId/:preApprovalId/reject - Reject pre-approval (Admin/Security)
+router.post('/:buildingId/:preApprovalId/reject',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  validateBuildingId,
+  validatePreApprovalId,
+  handleValidationErrors,
+  (req, res) => {
+    // Import the controller function dynamically to avoid circular dependencies
+    const { rejectPreApproval } = require('../controllers/preApprovalController');
+    rejectPreApproval(req, res);
+  }
+);
+
 module.exports = router;

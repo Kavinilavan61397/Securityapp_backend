@@ -300,10 +300,148 @@ const deletePreApproval = async (req, res) => {
   }
 };
 
+// Approve pre-approval (Admin/Security)
+const approvePreApproval = async (req, res) => {
+  try {
+    const { buildingId, preApprovalId } = req.params;
+    const { adminNotes } = req.body;
+    const userId = req.user.id || req.user.userId;
+    const userRole = req.user.role;
+
+    // Find the pre-approval
+    const preApproval = await PreApproval.findOne({
+      _id: preApprovalId,
+      buildingId,
+      isDeleted: false
+    }).populate('residentId', 'name email phoneNumber');
+
+    if (!preApproval) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pre-approval not found'
+      });
+    }
+
+    // Check if already processed
+    if (preApproval.status !== 'PENDING') {
+      return res.status(400).json({
+        success: false,
+        message: `Pre-approval is already ${preApproval.status.toLowerCase()}`
+      });
+    }
+
+    // Update status to approved
+    preApproval.status = 'APPROVED';
+    preApproval.approvedBy = userId;
+    preApproval.approvedAt = new Date();
+    if (adminNotes) {
+      preApproval.notes = adminNotes;
+    }
+
+    await preApproval.save();
+
+    res.json({
+      success: true,
+      message: 'Pre-approval approved successfully',
+      data: {
+        preApprovalId: preApproval._id,
+        visitorName: preApproval.visitorName,
+        visitorPhone: preApproval.visitorPhone,
+        flatNumber: preApproval.flatNumber,
+        status: preApproval.status,
+        approvedAt: preApproval.approvedAt,
+        approvedBy: {
+          role: userRole,
+          userId: userId
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Approve pre-approval error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to approve pre-approval',
+      error: error.message
+    });
+  }
+};
+
+// Reject pre-approval (Admin/Security)
+const rejectPreApproval = async (req, res) => {
+  try {
+    const { buildingId, preApprovalId } = req.params;
+    const { rejectionReason, adminNotes } = req.body;
+    const userId = req.user.id || req.user.userId;
+    const userRole = req.user.role;
+
+    // Find the pre-approval
+    const preApproval = await PreApproval.findOne({
+      _id: preApprovalId,
+      buildingId,
+      isDeleted: false
+    }).populate('residentId', 'name email phoneNumber');
+
+    if (!preApproval) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pre-approval not found'
+      });
+    }
+
+    // Check if already processed
+    if (preApproval.status !== 'PENDING') {
+      return res.status(400).json({
+        success: false,
+        message: `Pre-approval is already ${preApproval.status.toLowerCase()}`
+      });
+    }
+
+    // Update status to rejected
+    preApproval.status = 'REJECTED';
+    preApproval.approvedBy = userId;
+    preApproval.approvedAt = new Date();
+    preApproval.rejectionReason = rejectionReason || 'No reason provided';
+    if (adminNotes) {
+      preApproval.notes = adminNotes;
+    }
+
+    await preApproval.save();
+
+    res.json({
+      success: true,
+      message: 'Pre-approval rejected successfully',
+      data: {
+        preApprovalId: preApproval._id,
+        visitorName: preApproval.visitorName,
+        visitorPhone: preApproval.visitorPhone,
+        flatNumber: preApproval.flatNumber,
+        status: preApproval.status,
+        rejectionReason: preApproval.rejectionReason,
+        rejectedAt: preApproval.approvedAt,
+        rejectedBy: {
+          role: userRole,
+          userId: userId
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Reject pre-approval error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reject pre-approval',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createPreApproval,
   getPreApprovals,
   getPreApproval,
   updatePreApproval,
-  deletePreApproval
+  deletePreApproval,
+  approvePreApproval,
+  rejectPreApproval
 };

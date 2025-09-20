@@ -85,17 +85,12 @@ const validateVisitorCreation = [
     .isLength({ max: 50 })
     .withMessage('Relationship cannot exceed 50 characters'),
   
-  // Flat Numbers validation (for FLAT_EMPLOYEE category)
-  body('flatNumbers')
-    .optional()
-    .isArray()
-    .withMessage('Flat numbers must be an array'),
-  
-  body('flatNumbers.*')
+  // Flat Number validation (for FLAT_EMPLOYEE category)
+  body('flatNumber')
     .optional()
     .trim()
     .isLength({ max: 20 })
-    .withMessage('Each flat number cannot exceed 20 characters'),
+    .withMessage('Flat number cannot exceed 20 characters'),
   
   // Visitor Category validation
   body('visitorCategory')
@@ -188,17 +183,12 @@ const validateVisitorUpdate = [
     .isLength({ max: 50 })
     .withMessage('Relationship cannot exceed 50 characters'),
   
-  // Flat Numbers validation (for FLAT_EMPLOYEE category)
-  body('flatNumbers')
-    .optional()
-    .isArray()
-    .withMessage('Flat numbers must be an array'),
-  
-  body('flatNumbers.*')
+  // Flat Number validation (for FLAT_EMPLOYEE category)
+  body('flatNumber')
     .optional()
     .trim()
     .isLength({ max: 20 })
-    .withMessage('Each flat number cannot exceed 20 characters'),
+    .withMessage('Flat number cannot exceed 20 characters'),
   
   // Visitor Category validation
   body('visitorCategory')

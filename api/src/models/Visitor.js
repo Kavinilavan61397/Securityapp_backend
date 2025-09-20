@@ -88,11 +88,11 @@ const visitorSchema = new mongoose.Schema({
     maxlength: [20, 'Employee code cannot exceed 20 characters']
   },
 
-  flatNumbers: [{
+  flatNumber: {
     type: String,
     trim: true,
     maxlength: [20, 'Flat number cannot exceed 20 characters']
-  }],
+  },
 
   // Vehicle Information (for CAB_DRIVER and DELIVERY_AGENT)
   vehicleNumber: {

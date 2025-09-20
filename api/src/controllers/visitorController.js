@@ -33,7 +33,7 @@ class VisitorController {
         visitorCategory,
         serviceType,
         employeeCode,
-        flatNumbers,
+        flatNumber,
         vehicleType
       } = req.body;
 
@@ -69,7 +69,7 @@ class VisitorController {
         visitorCategory: visitorCategory || 'OTHER',
         serviceType,
         employeeCode,
-        flatNumbers: flatNumbers ? (Array.isArray(flatNumbers) ? flatNumbers : [flatNumbers]) : [],
+        flatNumber,
         vehicleType: vehicleType || 'OTHER'
       };
 
@@ -92,7 +92,7 @@ class VisitorController {
           visitorCategory: visitor.visitorCategory,
           serviceType: visitor.serviceType,
           employeeCode: visitor.employeeCode,
-          flatNumbers: visitor.flatNumbers,
+          flatNumber: visitor.flatNumber,
           vehicleNumber: visitor.vehicleNumber,
           vehicleType: visitor.vehicleType,
           status: visitor.status,

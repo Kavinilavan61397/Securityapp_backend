@@ -45,7 +45,7 @@ class AuthController {
         });
       }
 
-      const { name, email, phoneNumber, role, buildingId, employeeCode, flatNumber, tenantType, dateOfBirth, age, gender, address, completeAddress, city, pincode } = req.body;
+      const { name, username, email, phoneNumber, password, role, buildingId, employeeCode, flatNumber, tenantType, dateOfBirth, age, gender, address, completeAddress, city, pincode } = req.body;
 
       // Convert dateOfBirth to proper Date object
       let formattedDateOfBirth;
@@ -62,13 +62,13 @@ class AuthController {
 
       // Check if user already exists
       const existingUser = await User.findOne({
-        $or: [{ email }, { phoneNumber }]
+        $or: [{ username }, { email }, { phoneNumber }]
       });
 
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message: 'User with this email or phone number already exists'
+          message: 'User with this username, email or phone number already exists'
         });
       }
 
@@ -85,8 +85,10 @@ class AuthController {
       // Create user
       const user = new User({
         name,
+        username,
         email,
         phoneNumber,
+        password,
         role,
         buildingId,
         employeeCode,
@@ -157,25 +159,29 @@ class AuthController {
    */
   async login(req, res) {
     try {
-      const { email, phoneNumber, role, employeeCode } = req.body;
+      const { username, password } = req.body;
 
-      // Build query based on provided fields
-      let query = {
-        role: role || { $exists: true }
-      };
-
-      // If employeeCode is provided, search by employeeCode
-      if (employeeCode) {
-        query.employeeCode = employeeCode;
-      } else {
-        // Otherwise search by email or phone number
-        query.$or = [{ email }, { phoneNumber }];
+      // Validate required fields
+      if (!username || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username and password are required'
+        });
       }
 
-      // Find user
-      const user = await User.findOne(query);
+      // Find user by username (include password field for comparison)
+      const user = await User.findOne({ username }).select('+password');
 
       if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
+
+      // Verify password
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
         return res.status(401).json({
           success: false,
           message: 'Invalid credentials'
@@ -218,6 +224,7 @@ class AuthController {
         message: 'OTP sent to your email for verification',
         data: {
           userId: user._id,
+          username: user.username,
           email: user.email,
           role: user.role,
           employeeCode: user.employeeCode,
@@ -245,13 +252,13 @@ class AuthController {
    */
   async residentLogin(req, res) {
     try {
-      const { name, email, phoneNumber, flatNumber } = req.body;
+      const { name, email, phoneNumber, password, flatNumber } = req.body;
 
       // Validate required fields
-      if (!name || !email || !phoneNumber) {
+      if (!name || !email || !phoneNumber || !password) {
         return res.status(400).json({
           success: false,
-          message: 'Name, Email, and Phone Number are required'
+          message: 'Name, Email, Phone Number, and Password are required'
         });
       }
 
@@ -260,12 +267,21 @@ class AuthController {
         phoneNumber,
         role: 'RESIDENT',
         ...(flatNumber && { flatNumber })
-      });
+      }).select('+password');
 
       if (!user) {
         return res.status(404).json({
           success: false,
           message: 'Resident not found with this phone number' + (flatNumber ? ' and flat number' : '')
+        });
+      }
+
+      // Verify password first
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
         });
       }
 
@@ -421,6 +437,7 @@ class AuthController {
           user: {
             id: user._id,
             name: user.name,
+            username: user.username,
             email: user.email,
             role: user.role,
             roleDisplay: user.roleDisplay,

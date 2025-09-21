@@ -12,6 +12,17 @@ const userSchema = new mongoose.Schema({
     maxlength: [100, 'Name cannot exceed 100 characters']
   },
   
+  username: {
+    type: String,
+    required: [true, 'Username is required'],
+    unique: true,
+    lowercase: true,
+    trim: true,
+    minlength: [3, 'Username must be at least 3 characters long'],
+    maxlength: [30, 'Username cannot exceed 30 characters'],
+    match: [/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores']
+  },
+  
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -26,6 +37,13 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Phone number is required'],
     trim: true,
     match: [/^[+]?[\d\s\-\(\)]+$/, 'Please enter a valid phone number']
+  },
+  
+  password: {
+    type: String,
+    required: [true, 'Password is required'],
+    minlength: [6, 'Password must be at least 6 characters long'],
+    select: false // Don't include password in queries by default
   },
   
   // Role-based System
@@ -240,6 +258,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
+userSchema.index({ username: 1 });
 userSchema.index({ email: 1 });
 userSchema.index({ phoneNumber: 1 });
 userSchema.index({ role: 1 });
@@ -292,6 +311,11 @@ userSchema.pre('save', async function(next) {
   // Calculate age from dateOfBirth if not provided
   if (this.dateOfBirth && !this.age) {
     this.age = this.calculatedAge;
+  }
+  
+  // Hash password if it has been modified
+  if (this.isModified('password')) {
+    this.password = await bcrypt.hash(this.password, 12);
   }
   
   // Only hash OTP if it has been modified
@@ -348,6 +372,10 @@ userSchema.methods.verifyOTP = async function(inputOTP) {
   }
   
   return isValid;
+};
+
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
 userSchema.methods.hasPermission = function(permission) {

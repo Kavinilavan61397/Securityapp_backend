@@ -22,14 +22,12 @@ const validateCreateEmployee = [
     .withMessage('Please enter a valid phone number'),
   
   body('joiningDate')
-    .notEmpty()
-    .withMessage('Joining date is required')
+    .optional()
     .isISO8601()
     .withMessage('Please enter a valid date (YYYY-MM-DD)'),
   
   body('employeeType')
-    .notEmpty()
-    .withMessage('Employee type is required')
+    .optional()
     .isIn(['SECURITY_GUARD', 'RESIDENT_HELPER', 'TECHNICIAN', 'OTHER'])
     .withMessage('Employee type must be one of: SECURITY_GUARD, RESIDENT_HELPER, TECHNICIAN, OTHER'),
   

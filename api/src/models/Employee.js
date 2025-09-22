@@ -16,25 +16,26 @@ const employeeSchema = new mongoose.Schema({
     match: [/^[+]?[\d\s\-\(\)]+$/, 'Please enter a valid phone number']
   },
   
-  // Employee Code (Auto-generated, unique)
+  // Employee Code (Auto-generated, unique) - Made optional
   employeeCode: {
     type: String,
-    required: [true, 'Employee code is required'],
+    required: false, // Made optional
     unique: true,
+    sparse: true, // Allows multiple null values
     trim: true,
     maxlength: [20, 'Employee code cannot exceed 20 characters']
   },
   
-  // Joining Date (Required from Figma)
+  // Joining Date - Made optional
   joiningDate: {
     type: Date,
-    required: [true, 'Joining date is required']
+    required: false // Made optional
   },
   
-  // Employee Type (Required from Figma categories)
+  // Employee Type - Made optional
   employeeType: {
     type: String,
-    required: [true, 'Employee type is required'],
+    required: false, // Made optional
     enum: {
       values: ['SECURITY_GUARD', 'RESIDENT_HELPER', 'TECHNICIAN', 'OTHER'],
       message: 'Employee type must be one of: SECURITY_GUARD, RESIDENT_HELPER, TECHNICIAN, OTHER'
@@ -163,7 +164,7 @@ employeeSchema.virtual('joiningDateFormatted').get(function() {
   });
 });
 
-// Pre-save middleware to generate employee code
+// Pre-save middleware to generate employee code (only if not provided)
 employeeSchema.pre('save', async function(next) {
   if (this.isNew && !this.employeeCode) {
     this.employeeCode = await this.constructor.generateEmployeeCode();

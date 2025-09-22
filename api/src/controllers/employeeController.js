@@ -57,7 +57,7 @@ class EmployeeController {
       const employee = new Employee({
         name,
         phoneNumber,
-        joiningDate: new Date(joiningDate),
+        joiningDate: joiningDate ? new Date(joiningDate) : undefined,
         employeeType,
         canLogin,
         email,

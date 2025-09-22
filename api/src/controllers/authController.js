@@ -156,6 +156,9 @@ class AuthController {
   /**
    * User Login
    * POST /api/auth/login
+   * Role-based authentication:
+   * - SECURITY & BUILDING_ADMIN: Direct token generation (no OTP)
+   * - RESIDENT: OTP verification required
    */
   async login(req, res) {
     try {
@@ -202,38 +205,81 @@ class AuthController {
         });
       }
 
-      // Generate OTP for verification
-      const otpCode = user.generateOTP();
-      await user.save();
+      // 🎯 ROLE-BASED AUTHENTICATION FLOW
+      if (user.role === 'SECURITY' || user.role === 'BUILDING_ADMIN') {
+        // ✅ DIRECT TOKEN GENERATION - No OTP needed for admin roles
+        const token = AuthController.generateToken(user);
 
-      // Send OTP via Email
-      const emailResult = await emailService.sendOTPEmail(
-        user.email,
-        otpCode,
-        user.name,
-        'login'
-      );
+        // Update last login
+        user.lastLoginAt = new Date();
+        await user.save();
 
-      // Log email result for debugging
-      if (!emailResult.success) {
-        console.error('Failed to send login OTP email:', emailResult.error);
-      }
+        return res.status(200).json({
+          success: true,
+          message: 'Login successful',
+          data: {
+            token,
+            user: {
+              id: user._id,
+              username: user.username,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+              roleDisplay: user.roleDisplay,
+              buildingId: user.buildingId,
+              employeeCode: user.employeeCode,
+              isVerified: user.isVerified,
+              verificationLevel: user.verification?.verificationLevel || 'PENDING'
+            },
+            expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+            requiresOtp: false // Frontend flag
+          }
+        });
 
-      res.status(200).json({
-        success: true,
-        message: 'OTP sent to your email for verification',
-        data: {
-          userId: user._id,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          employeeCode: user.employeeCode,
-          isVerified: user.isVerified,
-          verificationLevel: user.verification?.verificationLevel || 'PENDING',
-          emailSent: emailResult.success,
-          otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined
+      } else if (user.role === 'RESIDENT') {
+        // ✅ OTP FLOW - Generate OTP for residents
+        const otpCode = user.generateOTP();
+        await user.save();
+
+        // Send OTP via Email
+        const emailResult = await emailService.sendOTPEmail(
+          user.email,
+          otpCode,
+          user.name,
+          'login'
+        );
+
+        // Log email result for debugging
+        if (!emailResult.success) {
+          console.error('Failed to send login OTP email:', emailResult.error);
         }
-      });
+
+        return res.status(200).json({
+          success: true,
+          message: 'OTP sent to your email for verification',
+          data: {
+            userId: user._id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            roleDisplay: user.roleDisplay,
+            buildingId: user.buildingId,
+            flatNumber: user.flatNumber,
+            isVerified: user.isVerified,
+            verificationLevel: user.verification?.verificationLevel || 'PENDING',
+            emailSent: emailResult.success,
+            otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined,
+            requiresOtp: true // Frontend flag
+          }
+        });
+
+      } else {
+        // Handle other roles (SUPER_ADMIN, etc.)
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid user role'
+        });
+      }
 
     } catch (error) {
       console.error('Login error:', error);

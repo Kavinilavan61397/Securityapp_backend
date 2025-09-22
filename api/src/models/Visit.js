@@ -23,6 +23,13 @@ const visitSchema = new mongoose.Schema({
     required: [true, 'Building ID is required']
   },
   
+  // Pre-approval Association (optional)
+  preApprovalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PreApproval',
+    required: false
+  },
+  
   // Resident/Host Information
   hostId: {
     type: mongoose.Schema.Types.ObjectId,

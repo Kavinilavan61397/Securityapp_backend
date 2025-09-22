@@ -61,14 +61,19 @@ class AuthController {
       }
 
       // Check if user already exists
-      const existingUser = await User.findOne({
-        $or: [{ username }, { email }, { phoneNumber }]
-      });
+      const existingUserQuery = { $or: [{ email }, { phoneNumber }] };
+      
+      // Only check username if it's provided
+      if (username) {
+        existingUserQuery.$or.push({ username });
+      }
+      
+      const existingUser = await User.findOne(existingUserQuery);
 
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message: 'User with this username, email or phone number already exists'
+          message: 'User with this email or phone number already exists' + (username ? ' or username already taken' : '')
         });
       }
 
@@ -134,6 +139,7 @@ class AuthController {
         message: 'User registered successfully. OTP sent to your email for verification.',
         data: {
           userId: user._id,
+          username: user.username, // Optional display field
           email: user.email,
           role: user.role,
           isVerified: user.isVerified,
@@ -162,18 +168,18 @@ class AuthController {
    */
   async login(req, res) {
     try {
-      const { username, password } = req.body;
+      const { email, password } = req.body;
 
       // Validate required fields
-      if (!username || !password) {
+      if (!email || !password) {
         return res.status(400).json({
           success: false,
-          message: 'Username and password are required'
+          message: 'Email and password are required'
         });
       }
 
-      // Find user by username (include password field for comparison)
-      const user = await User.findOne({ username }).select('+password');
+      // Find user by email (include password field for comparison)
+      const user = await User.findOne({ email }).select('+password');
 
       if (!user) {
         return res.status(401).json({
@@ -221,7 +227,7 @@ class AuthController {
             token,
             user: {
               id: user._id,
-              username: user.username,
+              username: user.username, // Optional display field
               name: user.name,
               email: user.email,
               role: user.role,
@@ -259,7 +265,7 @@ class AuthController {
           message: 'OTP sent to your email for verification',
           data: {
             userId: user._id,
-            username: user.username,
+            username: user.username, // Optional display field
             email: user.email,
             role: user.role,
             roleDisplay: user.roleDisplay,

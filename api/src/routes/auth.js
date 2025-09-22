@@ -18,11 +18,19 @@ const registerValidation = [
     .withMessage('Name must be between 2 and 100 characters'),
   
   body('username')
+    .optional()
     .trim()
-    .isLength({ min: 3, max: 30 })
-    .withMessage('Username must be between 3 and 30 characters')
-    .matches(/^[a-zA-Z0-9_]+$/)
-    .withMessage('Username can only contain letters, numbers, and underscores'),
+    .custom((value) => {
+      if (value && value.length > 0) {
+        if (value.length < 3 || value.length > 30) {
+          throw new Error('Username must be between 3 and 30 characters');
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+          throw new Error('Username can only contain letters, numbers, and underscores');
+        }
+      }
+      return true;
+    }),
   
   body('email')
     .isEmail()
@@ -133,12 +141,10 @@ const registerValidation = [
 ];
 
 const loginValidation = [
-  body('username')
-    .trim()
-    .isLength({ min: 3, max: 30 })
-    .withMessage('Username must be between 3 and 30 characters')
-    .matches(/^[a-zA-Z0-9_]+$/)
-    .withMessage('Username can only contain letters, numbers, and underscores'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
   
   body('password')
     .isLength({ min: 6 })

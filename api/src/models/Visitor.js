@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Visitor model for pre-approval automation
 const visitorSchema = new mongoose.Schema({
   // Basic Information
   name: {

@@ -1,3 +1,4 @@
+// Visit controller for pre-approval automation
 const Visit = require('../models/Visit');
 const Visitor = require('../models/Visitor');
 const User = require('../models/User');

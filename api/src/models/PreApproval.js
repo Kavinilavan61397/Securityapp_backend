@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// PreApproval model for pre-approval automation
 const preApprovalSchema = new mongoose.Schema({
   // Required fields
   visitorName: {

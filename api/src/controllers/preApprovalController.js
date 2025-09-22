@@ -4,6 +4,74 @@ const Visitor = require('../models/Visitor');
 const Visit = require('../models/Visit');
 const User = require('../models/User');
 
+// Helper function to create visitor from pre-approval data
+const createVisitorFromPreApproval = async (preApproval) => {
+  try {
+    // Check if visitor already exists by phone number
+    let visitor = await Visitor.findOne({ 
+      phoneNumber: preApproval.visitorPhone,
+      buildingId: preApproval.buildingId
+    });
+
+    if (!visitor) {
+      // Create new visitor
+      visitor = new Visitor({
+        name: preApproval.visitorName,
+        phoneNumber: preApproval.visitorPhone,
+        email: preApproval.visitorEmail || undefined,
+        buildingId: preApproval.buildingId,
+        visitorCategory: 'GUEST',
+        serviceType: 'PERSONAL',
+        flatNumber: preApproval.flatNumber || undefined,
+        isActive: true
+      });
+
+      await visitor.save();
+      console.log('✅ Visitor created from pre-approval:', visitor._id);
+    } else {
+      console.log('✅ Using existing visitor:', visitor._id);
+    }
+
+    return visitor;
+  } catch (error) {
+    console.error('Error creating visitor from pre-approval:', error);
+    throw error;
+  }
+};
+
+// Helper function to create visit from pre-approval data
+const createVisitFromPreApproval = async (preApproval, visitor) => {
+  try {
+    // Generate unique visit ID
+    const visitId = `VISIT_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    // Create visit
+    const visit = new Visit({
+      visitId,
+      visitorId: visitor._id,
+      buildingId: preApproval.buildingId,
+      hostId: preApproval.residentId,
+      hostFlatNumber: preApproval.flatNumber || undefined,
+      purpose: preApproval.purpose || 'Visit from pre-approval',
+      visitType: 'PRE_APPROVED',
+      scheduledDate: preApproval.expectedDate || new Date(),
+      scheduledTime: preApproval.expectedTime || '10:00 AM',
+      expectedDuration: 120, // Default 2 hours
+      preApprovalId: preApproval._id,
+      status: 'SCHEDULED',
+      approvalStatus: 'PENDING'
+    });
+
+    await visit.save();
+    console.log('✅ Visit created from pre-approval:', visit._id);
+
+    return visit;
+  } catch (error) {
+    console.error('Error creating visit from pre-approval:', error);
+    throw error;
+  }
+};
+
 // Create a new pre-approval
 const createPreApproval = async (req, res) => {
   try {
@@ -559,74 +627,6 @@ const rejectPreApproval = async (req, res) => {
       message: 'Failed to reject pre-approval',
       error: error.message
     });
-  }
-};
-
-// Helper function to create visitor from pre-approval data
-const createVisitorFromPreApproval = async (preApproval) => {
-  try {
-    // Check if visitor already exists by phone number
-    let visitor = await Visitor.findOne({ 
-      phoneNumber: preApproval.visitorPhone,
-      buildingId: preApproval.buildingId
-    });
-
-    if (!visitor) {
-      // Create new visitor
-      visitor = new Visitor({
-        name: preApproval.visitorName,
-        phoneNumber: preApproval.visitorPhone,
-        email: preApproval.visitorEmail || undefined,
-        buildingId: preApproval.buildingId,
-        visitorCategory: 'GUEST',
-        serviceType: 'PERSONAL',
-        flatNumber: preApproval.flatNumber || undefined,
-        isActive: true
-      });
-
-      await visitor.save();
-      console.log('✅ Visitor created from pre-approval:', visitor._id);
-    } else {
-      console.log('✅ Using existing visitor:', visitor._id);
-    }
-
-    return visitor;
-  } catch (error) {
-    console.error('Error creating visitor from pre-approval:', error);
-    throw error;
-  }
-};
-
-// Helper function to create visit from pre-approval data
-const createVisitFromPreApproval = async (preApproval, visitor) => {
-  try {
-    // Generate unique visit ID
-    const visitId = `VISIT_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-
-    // Create visit
-    const visit = new Visit({
-      visitId,
-      visitorId: visitor._id,
-      buildingId: preApproval.buildingId,
-      hostId: preApproval.residentId,
-      hostFlatNumber: preApproval.flatNumber || undefined,
-      purpose: preApproval.purpose || 'Visit from pre-approval',
-      visitType: 'PRE_APPROVED',
-      scheduledDate: preApproval.expectedDate || new Date(),
-      scheduledTime: preApproval.expectedTime || '10:00 AM',
-      expectedDuration: 120, // Default 2 hours
-      preApprovalId: preApproval._id,
-      status: 'SCHEDULED',
-      approvalStatus: 'PENDING'
-    });
-
-    await visit.save();
-    console.log('✅ Visit created from pre-approval:', visit._id);
-
-    return visit;
-  } catch (error) {
-    console.error('Error creating visit from pre-approval:', error);
-    throw error;
   }
 };
 

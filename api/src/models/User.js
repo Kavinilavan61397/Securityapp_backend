@@ -1,8 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-
-
+// User model for pre-approval automation
 const userSchema = new mongoose.Schema({
   // Basic Information
   name: {

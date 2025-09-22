@@ -75,13 +75,20 @@ const getPreApprovals = async (req, res) => {
   try {
     const { buildingId } = req.params;
     const userId = req.user.id || req.user.userId;
+    const userRole = req.user.role;
     const { page = 1, limit = 10, status } = req.query;
 
-    const query = {
-      residentId: userId,
+    // Build query based on user role
+    let query = {
       buildingId,
       isDeleted: false
     };
+
+    // Only residents can see their own pre-approvals
+    // Security and Admin can see all pre-approvals in their building
+    if (userRole === 'RESIDENT') {
+      query.residentId = userId;
+    }
 
     if (status) {
       query.status = status;
@@ -138,13 +145,22 @@ const getPreApproval = async (req, res) => {
   try {
     const { buildingId, preApprovalId } = req.params;
     const userId = req.user.id || req.user.userId;
+    const userRole = req.user.role;
 
-    const preApproval = await PreApproval.findOne({
+    // Build query based on user role
+    let query = {
       _id: preApprovalId,
-      residentId: userId,
       buildingId,
       isDeleted: false
-    });
+    };
+
+    // Only residents can see their own pre-approvals
+    // Security and Admin can see any pre-approval in their building
+    if (userRole === 'RESIDENT') {
+      query.residentId = userId;
+    }
+
+    const preApproval = await PreApproval.findOne(query);
 
     if (!preApproval) {
       return res.status(404).json({
@@ -189,14 +205,23 @@ const updatePreApproval = async (req, res) => {
   try {
     const { buildingId, preApprovalId } = req.params;
     const userId = req.user.id || req.user.userId;
+    const userRole = req.user.role;
     const { visitorName, visitorPhone, visitorEmail, purpose, expectedDate, expectedTime, notes, residentMobileNumber, flatNumber } = req.body;
 
-    const preApproval = await PreApproval.findOne({
+    // Build query based on user role
+    let query = {
       _id: preApprovalId,
-      residentId: userId,
       buildingId,
       isDeleted: false
-    });
+    };
+
+    // Only residents can update their own pre-approvals
+    // Security and Admin can update any pre-approval in their building
+    if (userRole === 'RESIDENT') {
+      query.residentId = userId;
+    }
+
+    const preApproval = await PreApproval.findOne(query);
 
     if (!preApproval) {
       return res.status(404).json({
@@ -259,13 +284,22 @@ const deletePreApproval = async (req, res) => {
   try {
     const { buildingId, preApprovalId } = req.params;
     const userId = req.user.id || req.user.userId;
+    const userRole = req.user.role;
 
-    const preApproval = await PreApproval.findOne({
+    // Build query based on user role
+    let query = {
       _id: preApprovalId,
-      residentId: userId,
       buildingId,
       isDeleted: false
-    });
+    };
+
+    // Only residents can delete their own pre-approvals
+    // Security and Admin can delete any pre-approval in their building
+    if (userRole === 'RESIDENT') {
+      query.residentId = userId;
+    }
+
+    const preApproval = await PreApproval.findOne(query);
 
     if (!preApproval) {
       return res.status(404).json({

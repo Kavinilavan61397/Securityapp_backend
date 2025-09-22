@@ -133,7 +133,8 @@ class EmployeeController {
         });
       }
 
-      // Check permissions
+      // Check permissions - Security and Building Admin can access all buildings for now
+      // TODO: Implement proper building assignment check when adminId is properly set
       if (role === 'BUILDING_ADMIN' && building.adminId && building.adminId.toString() !== userId) {
         return res.status(403).json({
           success: false,
@@ -148,8 +149,13 @@ class EmployeeController {
         query.employeeType = employeeType;
       }
       
+      // Only filter by isActive if explicitly requested
       if (isActive !== undefined) {
-        query.isActive = isActive === 'true';
+        // Handle both string and boolean values
+        query.isActive = isActive === 'true' || isActive === true;
+      } else {
+        // Default: show only active employees
+        query.isActive = true;
       }
 
       // Calculate pagination
@@ -170,8 +176,8 @@ class EmployeeController {
 
       // Get employee type counts
       const typeCounts = await Employee.aggregate([
-        { $match: { buildingId: new mongoose.Types.ObjectId(buildingId), isActive: true } },
-        { $group: { _id: '$employeeType', count: { $sum: 1 } } }
+        { $match: { buildingId: buildingId, isActive: true } },
+        { $group: { _id: { $ifNull: ['$employeeType', 'OTHER'] }, count: { $sum: 1 } } }
       ]);
 
       const typeCountMap = {};
@@ -232,7 +238,8 @@ class EmployeeController {
         });
       }
 
-      // Check permissions
+      // Check permissions - Security and Building Admin can access all buildings for now
+      // TODO: Implement proper building assignment check when adminId is properly set
       if (role === 'BUILDING_ADMIN' && building.adminId && building.adminId.toString() !== userId) {
         return res.status(403).json({
           success: false,

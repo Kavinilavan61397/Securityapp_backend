@@ -876,6 +876,79 @@ class AuthController {
   }
 
   /**
+   * Get User by ID
+   * GET /api/auth/users/:userId
+   * Security, Building Admin, and Super Admin can access
+   */
+  async getUserById(req, res) {
+    try {
+      const { userId } = req.params;
+      const currentUserRole = req.user.role;
+      const currentUserBuildingId = req.user.buildingId;
+
+      // Find the user
+      const user = await User.findById(userId)
+        .select('-otp -__v')
+        .populate('buildingId', 'name address');
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Check access permissions
+      if (currentUserRole === 'BUILDING_ADMIN') {
+        // Building admin can only see users in their building
+        if (user.buildingId && user.buildingId._id.toString() !== currentUserBuildingId.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied. You can only view users in your assigned building.'
+          });
+        }
+      } else if (currentUserRole === 'SECURITY') {
+        // Security can only see users in their building
+        if (user.buildingId && user.buildingId._id.toString() !== currentUserBuildingId.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied. You can only view users in your assigned building.'
+          });
+        }
+      }
+      // SUPER_ADMIN can see any user (no additional checks needed)
+
+      res.status(200).json({
+        success: true,
+        message: 'User retrieved successfully',
+        data: {
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            username: user.username,
+            role: user.role,
+            isActive: user.isActive,
+            isVerified: user.isVerified,
+            buildingId: user.buildingId,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get user by ID error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
    * Delete User Account
    * DELETE /api/auth/account
    * Users can delete their own accounts, admins can delete any account

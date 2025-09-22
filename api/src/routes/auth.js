@@ -1,5 +1,5 @@
 const express = require('express');
-const { body } = require('express-validator');
+const { body, param } = require('express-validator');
 const authController = require('../controllers/authController');
 const { authenticateToken, requireVerification, authorizeRoles } = require('../middleware/auth');
 
@@ -216,6 +216,13 @@ const profileUpdateValidation = [
     .withMessage('Pincode must be 6 digits')
 ];
 
+// User ID validation
+const validateUserId = [
+  param('userId')
+    .isMongoId()
+    .withMessage('Invalid user ID')
+];
+
 /**
  * @route   POST /api/auth/register
  * @desc    Register new user
@@ -293,6 +300,19 @@ router.get('/users',
   authenticateToken, 
   requireVerification(),
   authController.getAllUsers
+);
+
+/**
+ * @route   GET /api/auth/users/:userId
+ * @desc    Get user by ID
+ * @access  Private (Security, Building Admin, Super Admin)
+ */
+router.get('/users/:userId',
+  authenticateToken,
+  requireVerification(),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  validateUserId,
+  authController.getUserById
 );
 
 /**

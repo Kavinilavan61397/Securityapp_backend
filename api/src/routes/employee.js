@@ -1,23 +1,37 @@
 const express = require('express');
-const { body, param, query } = require('express-validator');
+const { body, param, query, validationResult } = require('express-validator');
 const router = express.Router();
 
 const EmployeeController = require('../controllers/employeeController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
+// Validation error handler
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors: errors.array()
+    });
+  }
+  next();
+};
+
+
 // Validation middleware
 const validateCreateEmployee = [
   body('name')
-    .trim()
     .notEmpty()
     .withMessage('Name is required')
+    .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Name must be between 2 and 100 characters'),
   
   body('phoneNumber')
-    .trim()
     .notEmpty()
     .withMessage('Phone number is required')
+    .trim()
     .matches(/^[+]?[\d\s\-\(\)]+$/)
     .withMessage('Please enter a valid phone number'),
   
@@ -205,8 +219,13 @@ const validateQuery = [
   
   query('isActive')
     .optional()
-    .isBoolean()
-    .withMessage('isActive must be a boolean value'),
+    .custom((value) => {
+      if (value === 'true' || value === 'false' || value === true || value === false) {
+        return true;
+      }
+      throw new Error('isActive must be true or false');
+    })
+    .withMessage('isActive must be true or false'),
   
   query('page')
     .optional()
@@ -244,6 +263,7 @@ router.post(
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
   validateParams[0], // buildingId validation
   validateCreateEmployee,
+  handleValidationErrors,
   EmployeeController.createEmployee
 );
 
@@ -251,7 +271,7 @@ router.post(
 router.get(
   '/:buildingId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
   validateParams[0], // buildingId validation
   validateQuery,
   EmployeeController.getEmployees
@@ -261,7 +281,7 @@ router.get(
 router.get(
   '/:buildingId/:employeeId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
   validateParams,
   EmployeeController.getEmployeeById
 );
@@ -270,7 +290,7 @@ router.get(
 router.put(
   '/:buildingId/:employeeId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
   validateParams,
   validateUpdateEmployee,
   EmployeeController.updateEmployee
@@ -280,7 +300,7 @@ router.put(
 router.delete(
   '/:buildingId/:employeeId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
   validateParams,
   EmployeeController.deleteEmployee
 );

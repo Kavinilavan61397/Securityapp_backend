@@ -998,7 +998,9 @@ class AuthController {
           userId: user._id,
           email: user.email,
           otpSent: emailResult.success,
-          otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined
+          otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined,
+          // Static OTP fallback for testing
+          staticOTP: process.env.STATIC_OTP || '1234'
         }
       });
 

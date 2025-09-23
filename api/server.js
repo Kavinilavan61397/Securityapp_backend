@@ -296,5 +296,4 @@ async function startServer() {
 }
 
 // Start the server
-startServer();
-"// Trigger deployment for forgot password routes" 
+startServer(); 

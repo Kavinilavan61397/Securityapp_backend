@@ -141,7 +141,7 @@ class VisitorController {
 
       // Get total count and visitors (exclude soft-deleted visitors)
       const totalVisitors = await Visitor.countDocuments({ buildingId, isActive: true });
-      const visitors = await Visitor.findByBuilding(buildingId, { skip, limit, isActive: true });
+      const visitors = await Visitor.findByBuilding(buildingId, { skip, limit, isActive: true, sort: { createdAt: -1 } });
 
       // Calculate pagination
       const totalPages = Math.ceil(totalVisitors / limit);
@@ -342,7 +342,7 @@ class VisitorController {
         .select('name phoneNumber email company photo isBlacklisted totalVisits lastVisitAt')
         .populate('photo', 'url thumbnail')
         .limit(parseInt(limit))
-        .sort({ totalVisits: -1, lastVisitAt: -1 });
+        .sort({ createdAt: -1, totalVisits: -1, lastVisitAt: -1 });
 
       res.json({
         success: true,

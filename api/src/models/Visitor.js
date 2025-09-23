@@ -228,13 +228,14 @@ visitorSchema.methods.activate = function() {
 
 // Static methods
 visitorSchema.statics.findByBuilding = function(buildingId, options = {}) {
-  const { skip = 0, limit = 10, ...queryOptions } = options;
+  const { skip = 0, limit = 10, sort = { createdAt: -1 }, ...queryOptions } = options;
   
   const query = { buildingId, ...queryOptions };
   
   return this.find(query)
     .skip(skip)
     .limit(limit)
+    .sort(sort)
     .populate({
       path: 'photo',
       select: 'url thumbnail',

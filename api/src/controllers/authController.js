@@ -949,6 +949,174 @@ class AuthController {
   }
 
   /**
+   * Forgot Password (Step 1)
+   * POST /api/auth/forgot-password
+   * Send OTP to user's email for password reset
+   */
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+
+      // Find user by email
+      const user = await User.findOne({ email, isActive: true });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'No account found with this email address'
+        });
+      }
+
+      // Check if user can login
+      if (!user.canLogin) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password reset is not allowed for this account'
+        });
+      }
+
+      // Generate OTP for password reset
+      const otpCode = user.generateOTP();
+      await user.save();
+
+      // Send OTP via Email
+      const emailResult = await emailService.sendOTPEmail(
+        user.email,
+        otpCode,
+        user.name,
+        'password_reset'
+      );
+
+      // Log email result for debugging
+      if (!emailResult.success) {
+        console.error('Failed to send password reset OTP email:', emailResult.error);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Password reset OTP sent to your email',
+        data: {
+          userId: user._id,
+          email: user.email,
+          otpSent: emailResult.success,
+          otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined
+        }
+      });
+
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Verify Reset OTP (Step 2)
+   * POST /api/auth/verify-reset-otp
+   * Verify OTP and generate reset token
+   */
+  async verifyResetOTP(req, res) {
+    try {
+      const { email, otp } = req.body;
+
+      // Find user by email
+      const user = await User.findOne({ email, isActive: true });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'No account found with this email address'
+        });
+      }
+
+      // Verify OTP
+      const isValid = await user.verifyOTP(otp);
+      if (!isValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid or expired OTP'
+        });
+      }
+
+      // Generate password reset token
+      const resetToken = user.generatePasswordResetToken();
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'OTP verified successfully. You can now reset your password',
+        data: {
+          userId: user._id,
+          email: user.email,
+          resetToken: resetToken,
+          verified: true
+        }
+      });
+
+    } catch (error) {
+      console.error('Verify reset OTP error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Reset Password (Step 3)
+   * POST /api/auth/reset-password
+   * Reset password with new password
+   */
+  async resetPassword(req, res) {
+    try {
+      const { email, resetToken, newPassword, confirmPassword } = req.body;
+
+      // Find user by email
+      const user = await User.findOne({ email, isActive: true });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'No account found with this email address'
+        });
+      }
+
+      // Verify reset token
+      const isTokenValid = await user.verifyPasswordResetToken(resetToken);
+      if (!isTokenValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid or expired reset token'
+        });
+      }
+
+      // Update password
+      user.password = newPassword;
+      user.clearPasswordReset(); // Clear reset token
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Password reset successfully. You can now login with your new password',
+        data: {
+          userId: user._id,
+          email: user.email,
+          passwordUpdated: true
+        }
+      });
+
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
    * Delete User Account
    * DELETE /api/auth/account
    * Users can delete their own accounts, admins can delete any account

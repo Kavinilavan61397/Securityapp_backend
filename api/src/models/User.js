@@ -139,6 +139,16 @@ const userSchema = new mongoose.Schema({
     }
   },
   
+  // Password Reset System
+  passwordReset: {
+    token: String,
+    expiresAt: Date,
+    attempts: {
+      type: Number,
+      default: 0
+    }
+  },
+  
   // Login Access Control
   canLogin: {
     type: Boolean,
@@ -376,6 +386,51 @@ userSchema.methods.verifyOTP = async function(inputOTP) {
 
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Password Reset Methods
+userSchema.methods.generatePasswordResetToken = function() {
+  const crypto = require('crypto');
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  
+  this.passwordReset = {
+    token: resetToken,
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    attempts: 0
+  };
+  
+  return resetToken;
+};
+
+userSchema.methods.verifyPasswordResetToken = async function(inputToken) {
+  if (!this.passwordReset || !this.passwordReset.token) {
+    return false;
+  }
+  
+  if (new Date() > this.passwordReset.expiresAt) {
+    this.passwordReset = undefined;
+    return false;
+  }
+  
+  if (this.passwordReset.attempts >= 3) {
+    this.passwordReset = undefined;
+    return false;
+  }
+  
+  const isValid = this.passwordReset.token === inputToken;
+  
+  if (!isValid) {
+    this.passwordReset.attempts += 1;
+  } else {
+    // Token is valid, keep it for password reset
+    this.passwordReset.attempts = 0;
+  }
+  
+  return isValid;
+};
+
+userSchema.methods.clearPasswordReset = function() {
+  this.passwordReset = undefined;
 };
 
 userSchema.methods.hasPermission = function(permission) {

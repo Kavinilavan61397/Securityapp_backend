@@ -170,6 +170,49 @@ const resendOTPValidation = [
     .withMessage('User ID must be a valid MongoDB ObjectId')
 ];
 
+// Forgot Password Validation
+const forgotPasswordValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address')
+];
+
+const verifyResetOTPValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  
+  body('otp')
+    .isLength({ min: 4, max: 4 })
+    .isNumeric()
+    .withMessage('OTP must be a 4-digit number')
+];
+
+const resetPasswordValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  
+  body('resetToken')
+    .notEmpty()
+    .withMessage('Reset token is required'),
+  
+  body('newPassword')
+    .isLength({ min: 6 })
+    .withMessage('New password must be at least 6 characters long'),
+  
+  body('confirmPassword')
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error('Password confirmation does not match');
+      }
+      return true;
+    })
+];
+
 const profileUpdateValidation = [
   body('name')
     .optional()
@@ -283,6 +326,27 @@ router.post('/verify-otp', otpValidation, authController.verifyOTP);
  * @access  Public
  */
 router.post('/resend-otp', resendOTPValidation, authController.resendOTP);
+
+/**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Request password reset (Step 1)
+ * @access  Public
+ */
+router.post('/forgot-password', forgotPasswordValidation, authController.forgotPassword);
+
+/**
+ * @route   POST /api/auth/verify-reset-otp
+ * @desc    Verify reset OTP (Step 2)
+ * @access  Public
+ */
+router.post('/verify-reset-otp', verifyResetOTPValidation, authController.verifyResetOTP);
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Reset password (Step 3)
+ * @access  Public
+ */
+router.post('/reset-password', resetPasswordValidation, authController.resetPassword);
 
 /**
  * @route   GET /api/auth/profile

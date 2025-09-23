@@ -15,6 +15,9 @@ COMPLETE_ENDPOINTS_REFERENCE.md
 node_modules/
 */node_modules/
 
+test_endpoints.js
+test_single_endpoint.js
+chat_update.txt
 # Logs
 logs/
 *.log

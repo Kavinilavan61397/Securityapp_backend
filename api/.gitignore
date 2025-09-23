@@ -5,3 +5,27 @@ coverage/
 chat.txt
 EMAIL_SETUP_GUIDE.md
 POSTMAN_ENDPOINTS_REFERENCE.md
+
+ADMIN_FLOW_ENDPOINTS_COMPLETE.md
+ADMIN_FLOW_ENDPOINTS_TESTING_GUIDE.md
+ADMIN_ENDPOINTS_JSON_EXAMPLES.md
+assign_buildings_to_users.js
+check_user_buildings.js
+get_admin_token_final.js
+get_sample_users.js
+get_super_admin_token.js
+get_test_data.js
+simple_admin_token.js
+simple_building_check.js
+
+test_endpoints.js
+test_single_endpoint.js
+# assign_buildings_to_users.js
+# Test files
+test_*.js
+*_test.js
+debug_*.js
+quick_*.js
+
+# Documentation files (optional)
+*.md

@@ -113,12 +113,12 @@ const visitSchema = new mongoose.Schema({
   qrCode: {
     type: String,
     unique: true,
-    required: true
+    required: false // Will be generated in pre-save hook
   },
   
   qrCodeExpiresAt: {
     type: Date,
-    required: true
+    required: false // Will be generated in pre-save hook
   },
   
   // Photo Verification
@@ -362,7 +362,9 @@ visitSchema.pre('save', function(next) {
   
   // Generate QR code if not exists
   if (!this.qrCode) {
-    this.generateQRCode();
+    const uniqueString = `${this.visitId}-${this.visitorId}-${Date.now()}`;
+    this.qrCode = crypto.createHash('sha256').update(uniqueString).digest('hex').substring(0, 32);
+    this.qrCodeExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
   }
   
   next();

@@ -20,7 +20,7 @@ const createVisitorFromPreApproval = async (preApproval) => {
         phoneNumber: preApproval.visitorPhone,
         email: preApproval.visitorEmail || undefined,
         buildingId: preApproval.buildingId,
-        visitorCategory: 'GUEST',
+        visitorCategory: 'OTHER',
         serviceType: 'PERSONAL',
         flatNumber: preApproval.flatNumber || undefined,
         isActive: true
@@ -64,6 +64,7 @@ const createVisitFromPreApproval = async (preApproval, visitor) => {
 
     await visit.save();
     console.log('✅ Visit created from pre-approval:', visit._id);
+    console.log('✅ QR Code generated:', visit.qrCode);
 
     return visit;
   } catch (error) {

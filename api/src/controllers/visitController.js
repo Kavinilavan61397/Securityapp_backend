@@ -353,7 +353,12 @@ class VisitController {
             visit.rejectionReason = rejectionReason;
             visit.status = 'CANCELLED';
           } else if (approvalStatus === 'APPROVED') {
-            visit.status = 'SCHEDULED';
+            // Auto check-in when approved
+            visit.status = 'IN_PROGRESS';
+            visit.checkInTime = new Date();
+            visit.verifiedBySecurity = userId;
+            visit.verifiedAt = new Date();
+            visit.checkIn = true;
           } else if (approvalStatus === 'CANCELLED') {
             visit.status = 'CANCELLED';
           }
@@ -382,7 +387,12 @@ class VisitController {
             visit.rejectionReason = rejectionReason;
             visit.status = 'CANCELLED';
           } else if (approvalStatus === 'APPROVED') {
-            visit.status = 'SCHEDULED';
+            // Auto check-in when approved
+            visit.status = 'IN_PROGRESS';
+            visit.checkInTime = new Date();
+            visit.verifiedBySecurity = userId;
+            visit.verifiedAt = new Date();
+            visit.checkIn = true;
           } else if (approvalStatus === 'CANCELLED') {
             visit.status = 'CANCELLED';
           }
@@ -402,23 +412,47 @@ class VisitController {
         };
 
         if (approvalStatus === 'APPROVED') {
-          // Notify host only (visitors don't have accounts for in-app notifications)
+          // Notify host that visitor is approved and checked in
           try {
             await Notification.create({
               ...notificationData,
               recipientId: visit.hostId._id,
               recipientRole: visit.hostId.role || 'RESIDENT',
-              title: 'Visit Approved',
-              message: `${visit.visitorId.name}'s visit has been approved`,
-              type: 'VISIT_APPROVED',
+              title: 'Visitor Approved & Checked In',
+              message: `${visit.visitorId.name} has been approved and is now in the building`,
+              type: 'VISITOR_ARRIVAL',
               category: 'SUCCESS',
               priority: 'MEDIUM'
             });
             
             // Update notification status
             visit.notificationsSent.host = true;
+            visit.notificationsSent.checkIn = true;
           } catch (notificationError) {
             console.error('Host notification creation failed:', notificationError);
+            // Continue even if notification fails
+          }
+
+          // Notify building admin
+          try {
+            const buildingAdmin = await User.findOne({ buildingId, role: 'BUILDING_ADMIN' });
+            if (buildingAdmin) {
+              await Notification.create({
+                ...notificationData,
+                recipientId: buildingAdmin._id,
+                recipientRole: 'BUILDING_ADMIN',
+                title: 'Visitor Approved & Checked In',
+                message: `${visit.visitorId.name} has been approved and checked in to ${visit.hostId.name}`,
+                type: 'VISITOR_ARRIVAL',
+                category: 'INFO',
+                priority: 'LOW'
+              });
+              
+              // Update notification status
+              visit.notificationsSent.admin = true;
+            }
+          } catch (notificationError) {
+            console.error('Building admin notification creation failed:', notificationError);
             // Continue even if notification fails
           }
         } else if (approvalStatus === 'REJECTED') {

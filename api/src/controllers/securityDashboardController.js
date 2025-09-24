@@ -62,7 +62,11 @@ class SecurityDashboardController {
         isActive: true
       })
       .populate('visitorId', 'name visitorCategory serviceType vehicleNumber')
-      .sort({ checkInTime: -1 })
+      .sort({ 
+        updatedAt: -1,    // Most recent activity first
+        checkInTime: -1,  // Then by check-in time
+        createdAt: -1     // Finally by creation time
+      })
       .limit(10);
 
       // Categorize recent activity
@@ -181,7 +185,11 @@ class SecurityDashboardController {
       const activities = await Visit.find(query)
         .populate('visitorId', 'name visitorCategory serviceType vehicleNumber')
         .populate('hostId', 'name flatNumber')
-        .sort({ checkInTime: -1 })
+        .sort({ 
+          updatedAt: -1,    // Most recent activity first
+          createdAt: -1,    // Then by creation time
+          approvedAt: -1    // Finally by approval time
+        })
         .limit(parseInt(limit));
 
       res.status(200).json({

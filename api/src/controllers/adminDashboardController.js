@@ -351,7 +351,11 @@ class AdminDashboardController {
           },
           { path: 'hostId', select: 'name phoneNumber flatNumber' }
         ])
-        .sort({ createdAt: -1 })
+        .sort({ 
+          updatedAt: -1,    // Most recent activity first
+          createdAt: -1,    // Then by creation time
+          approvedAt: -1    // Finally by approval time
+        })
         .limit(parseInt(limit));
 
       // Filter out visits where visitorId or hostId is null

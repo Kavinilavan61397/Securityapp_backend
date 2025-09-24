@@ -19,20 +19,8 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // Configure multer storage for profile photos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const profileDir = path.join(uploadsDir, 'profiles');
-    if (!fs.existsSync(profileDir)) {
-      fs.mkdirSync(profileDir, { recursive: true });
-    }
-    cb(null, profileDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = crypto.randomBytes(16).toString('hex') + '_' + Date.now();
-    const filename = `profile_${uniqueSuffix}${path.extname(file.originalname)}`;
-    cb(null, filename);
-  }
-});
+// Use memory storage for Vercel compatibility
+const storage = multer.memoryStorage();
 
 // Configure multer upload for profile photos
 const upload = multer({
@@ -175,13 +163,18 @@ const uploadProfilePhoto = async (req, res) => {
       await Photo.findByIdAndDelete(user.profilePhotoId);
     }
     
-    // Create photo record
+    // Convert file buffer to base64 for Vercel compatibility
+    const base64Data = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    
+    // Create photo record with base64 storage
     const photo = await Photo.create({
       photoId: `PROFILE_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
-      filename: req.file.filename,
+      filename: `profile_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.jpg`,
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
+      base64Data: base64Data,
+      storageType: 'base64',
       uploadedBy: userId,
       buildingId: user.buildingId,
       relatedType: 'USER',
@@ -194,7 +187,7 @@ const uploadProfilePhoto = async (req, res) => {
     
     // Update user with new photo reference
     user.profilePhotoId = photo._id;
-    user.profilePicture = `/api/photos/${user.buildingId}/stream/${photo._id}`;
+    user.profilePicture = `/api/user-profile/me/photo-base64`;
     await user.save();
     
     res.status(201).json({
@@ -373,11 +366,28 @@ const getProfilePhoto = async (req, res) => {
       });
     }
     
-    // Set appropriate headers
+    // Handle base64 storage (Vercel compatible)
+    if (user.profilePhotoId.storageType === 'base64' && user.profilePhotoId.base64Data) {
+      // Extract base64 data
+      const base64Data = user.profilePhotoId.base64Data.split(',')[1];
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+      
+      // Set appropriate headers
+      res.set({
+        'Content-Type': user.profilePhotoId.mimeType,
+        'Content-Length': imageBuffer.length,
+        'Content-Disposition': `inline; filename="${user.profilePhotoId.originalName}"`,
+        'Cache-Control': 'public, max-age=31536000'
+      });
+      
+      res.send(imageBuffer);
+      return;
+    }
+    
+    // Fallback to file system (for local development)
     res.set('Content-Type', user.profilePhotoId.mimeType);
     res.set('Content-Disposition', `inline; filename="${user.profilePhotoId.originalName}"`);
     
-    // Stream the file from local storage
     const filePath = path.join(uploadsDir, 'profiles', user.profilePhotoId.filename);
     
     if (!fs.existsSync(filePath)) {

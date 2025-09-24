@@ -158,7 +158,17 @@ const userSchema = new mongoose.Schema({
   lastLoginAt: Date,
   
   // Profile
-  profilePicture: String,
+  profilePicture: {
+    type: String,
+    default: null
+  },
+  
+  // Profile Photo Reference (links to Photo model)
+  profilePhotoId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Photo',
+    default: null
+  },
   
   // Date of Birth (from Figma design)
   dateOfBirth: {

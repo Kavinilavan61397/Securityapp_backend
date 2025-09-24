@@ -34,6 +34,7 @@ const employeeRoutes = require('./src/routes/employee');
 const residentApprovalRoutes = require('./src/routes/residentApproval');
 const adminDashboardRoutes = require('./src/routes/adminDashboard');
 const messageRoutes = require('./src/routes/message');
+const userProfileRoutes = require('./src/routes/userProfile');
 
 // Initialize Express app
 const app = express();
@@ -147,6 +148,7 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/resident-approvals', residentApprovalRoutes);
 app.use('/api/admin-dashboard', adminDashboardRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/user-profile', userProfileRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {
@@ -206,7 +208,8 @@ app.get('/', (req, res) => {
         visits: `${BASE_URL}/api/visits`,
         notifications: `${BASE_URL}/api/notifications`,
         photos: `${BASE_URL}/api/photos`,
-        analytics: `${BASE_URL}/api/analytics`
+        analytics: `${BASE_URL}/api/analytics`,
+        userProfile: `${BASE_URL}/api/user-profile`
       },
     features: [
       '4-Tier Role System (Super Admin → Building Admin → Security → Resident)',

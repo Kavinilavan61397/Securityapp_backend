@@ -236,24 +236,21 @@ const updateProfilePhoto = async (req, res) => {
     
     // Delete old profile photo if exists
     if (user.profilePhotoId) {
-      const oldPhoto = await Photo.findById(user.profilePhotoId);
-      if (oldPhoto) {
-        // Delete file from disk
-        const oldFilePath = path.join(uploadsDir, 'profiles', oldPhoto.filename);
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
-        }
-        await Photo.findByIdAndDelete(user.profilePhotoId);
-      }
+      await Photo.findByIdAndDelete(user.profilePhotoId);
     }
     
-    // Create new photo record
+    // Convert file buffer to base64 for Vercel compatibility
+    const base64Data = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    
+    // Create new photo record with base64 storage
     const photo = await Photo.create({
       photoId: `PROFILE_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
-      filename: req.file.filename,
+      filename: `profile_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.jpg`,
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
+      base64Data: base64Data,
+      storageType: 'base64',
       uploadedBy: userId,
       buildingId: user.buildingId,
       relatedType: 'USER',
@@ -266,7 +263,7 @@ const updateProfilePhoto = async (req, res) => {
     
     // Update user with new photo reference
     user.profilePhotoId = photo._id;
-    user.profilePicture = `/api/photos/${user.buildingId}/stream/${photo._id}`;
+    user.profilePicture = `/api/user-profile/me/photo`;
     await user.save();
     
     res.json({
@@ -313,18 +310,8 @@ const deleteProfilePhoto = async (req, res) => {
       });
     }
     
-    // Get photo details
-    const photo = await Photo.findById(user.profilePhotoId);
-    if (photo) {
-      // Delete file from disk
-      const filePath = path.join(uploadsDir, 'profiles', photo.filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-      
-      // Delete photo record
-      await Photo.findByIdAndDelete(user.profilePhotoId);
-    }
+    // Delete photo record (no file system cleanup needed for base64)
+    await Photo.findByIdAndDelete(user.profilePhotoId);
     
     // Update user
     user.profilePhotoId = null;

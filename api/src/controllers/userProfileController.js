@@ -454,6 +454,143 @@ const getUserProfileById = async (req, res) => {
   }
 };
 
+// Upload profile photo using base64 (Vercel compatible)
+const uploadProfilePhotoBase64 = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { base64Data, mimeType = 'image/jpeg', originalName = 'profile.jpg' } = req.body;
+    
+    if (!base64Data) {
+      return res.status(400).json({
+        success: false,
+        message: 'Base64 data is required'
+      });
+    }
+    
+    // Validate base64 format
+    const base64Regex = /^data:image\/(jpeg|jpg|png|gif|webp);base64,/;
+    if (!base64Regex.test(base64Data)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid base64 format. Must be data:image/[type];base64,[data]'
+      });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Calculate size from base64
+    const base64String = base64Data.split(',')[1];
+    const size = Math.round((base64String.length * 3) / 4);
+    
+    // Validate size (max 5MB)
+    if (size > 5 * 1024 * 1024) {
+      return res.status(400).json({
+        success: false,
+        message: 'Image size cannot exceed 5MB'
+      });
+    }
+    
+    // Delete old profile photo if exists
+    if (user.profilePhotoId) {
+      await Photo.findByIdAndDelete(user.profilePhotoId);
+    }
+    
+    // Create photo record with base64 data
+    const photo = await Photo.create({
+      photoId: `PROFILE_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+      filename: `profile_${Date.now()}.jpg`,
+      originalName: originalName,
+      mimeType: mimeType,
+      size: size,
+      base64Data: base64Data,
+      storageType: 'base64',
+      uploadedBy: userId,
+      buildingId: user.buildingId,
+      relatedType: 'USER',
+      relatedId: userId,
+      description: `Profile photo for ${user.name}`,
+      tags: ['profile', 'user'],
+      isPublic: false,
+      accessLevel: 'PRIVATE'
+    });
+    
+    // Update user with new photo reference
+    user.profilePhotoId = photo._id;
+    user.profilePicture = `/api/user-profile/me/photo-base64/${photo._id}`;
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: 'Profile photo uploaded successfully',
+      data: {
+        photoId: photo.photoId,
+        photoUrl: user.profilePicture,
+        size: size,
+        mimeType: mimeType,
+        storageType: 'base64'
+      }
+    });
+    
+  } catch (error) {
+    console.error('Upload profile photo base64 error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload profile photo',
+      error: error.message
+    });
+  }
+};
+
+// Get profile photo as base64
+const getProfilePhotoBase64 = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const user = await User.findById(userId).populate('profilePhotoId');
+    
+    if (!user || !user.profilePhotoId) {
+      return res.status(404).json({
+        success: false,
+        message: 'No profile photo found'
+      });
+    }
+    
+    const photo = user.profilePhotoId;
+    
+    if (photo.storageType === 'base64' && photo.base64Data) {
+      res.json({
+        success: true,
+        data: {
+          photoId: photo.photoId,
+          base64Data: photo.base64Data,
+          mimeType: photo.mimeType,
+          size: photo.size,
+          originalName: photo.originalName,
+          storageType: photo.storageType
+        }
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'Profile photo not available in base64 format'
+      });
+    }
+    
+  } catch (error) {
+    console.error('Get profile photo base64 error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get profile photo',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   upload,
   getUserProfile,
@@ -462,5 +599,7 @@ module.exports = {
   updateProfilePhoto,
   deleteProfilePhoto,
   getProfilePhoto,
-  getUserProfileById
+  getUserProfileById,
+  uploadProfilePhotoBase64,
+  getProfilePhotoBase64
 };

@@ -21,11 +21,7 @@ simple_building_check.js
 test_endpoints.js
 test_single_endpoint.js
 # assign_buildings_to_users.js
-# Test files
-test_*.js
-*_test.js
-debug_*.js
-quick_*.js
+
 
 # Documentation files (optional)
 # *.md

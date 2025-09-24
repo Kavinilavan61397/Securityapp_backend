@@ -73,6 +73,24 @@ router.get('/me/photo',
   userProfileController.getProfilePhoto
 );
 
+// Upload profile photo using base64 (Vercel compatible)
+router.post('/me/photo-base64',
+  [
+    body('base64Data').notEmpty().withMessage('Base64 data is required'),
+    body('mimeType').optional().isIn(['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']).withMessage('Invalid image type'),
+    body('originalName').optional().trim().isLength({ max: 255 }).withMessage('Original name too long')
+  ],
+  validateParams,
+  authenticateToken,
+  userProfileController.uploadProfilePhotoBase64
+);
+
+// Get profile photo as base64
+router.get('/me/photo-base64',
+  authenticateToken,
+  userProfileController.getProfilePhotoBase64
+);
+
 // Get user profile by ID (for admin purposes)
 router.get('/:userId',
   [

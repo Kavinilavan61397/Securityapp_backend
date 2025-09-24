@@ -35,6 +35,25 @@ const photoSchema = new mongoose.Schema({
     max: [10485760, 'File size cannot exceed 10MB'] // 10MB limit
   },
   
+  // Base64 Storage (for Vercel compatibility)
+  base64Data: {
+    type: String,
+    required: false,
+    validate: {
+      validator: function(v) {
+        // Only require base64Data if no filePath is provided
+        return !this.filePath || v;
+      },
+      message: 'Base64 data is required when no file path is provided'
+    }
+  },
+  
+  storageType: {
+    type: String,
+    enum: ['file', 'base64', 'cloud'],
+    default: 'file'
+  },
+  
   // Upload Information
   uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,

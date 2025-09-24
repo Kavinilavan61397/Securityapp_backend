@@ -44,7 +44,7 @@ const getUserProfile = async (req, res) => {
     const userId = req.user.userId;
     
     const user = await User.findById(userId)
-      .populate('profilePhotoId', 'photoId filename originalName mimeType size photoUrl')
+      .populate('profilePhotoId', 'photoId filename originalName mimeType size base64Data storageType')
       .select('-password -otp -passwordReset');
     
     if (!user) {
@@ -54,9 +54,22 @@ const getUserProfile = async (req, res) => {
       });
     }
     
-    // Add profile photo URL if exists
+    // Add profile photo data if exists
     if (user.profilePhotoId) {
-      user.profilePhotoId.photoUrl = `/api/photos/${user.buildingId}/stream/${user.profilePhotoId._id}`;
+      const photo = user.profilePhotoId;
+      
+      // Include photo data for UI display
+      user.profilePhotoData = {
+        photoId: photo.photoId,
+        base64Data: photo.base64Data,
+        mimeType: photo.mimeType,
+        size: photo.size,
+        originalName: photo.originalName,
+        storageType: photo.storageType
+      };
+      
+      // Keep the URL for backward compatibility
+      user.profilePhotoId.photoUrl = `/api/user-profile/me/photo`;
     }
     
     res.json({

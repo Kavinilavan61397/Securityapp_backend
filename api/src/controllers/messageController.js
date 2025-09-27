@@ -69,8 +69,7 @@ class MessageController {
       }
 
       // Create new message
-      const message = new Message({
-        title,
+      const messageData = {
         content,
         messageType,
         priority,
@@ -82,7 +81,14 @@ class MessageController {
         isPinned,
         buildingId,
         postedBy: userId
-      });
+      };
+
+      // Only add title if provided
+      if (title) {
+        messageData.title = title;
+      }
+
+      const message = new Message(messageData);
 
       await message.save();
 
@@ -703,7 +709,7 @@ class MessageController {
         Notification.create({
           recipientId: resident._id,
           recipientRole: 'RESIDENT',
-          title: message.title,
+          title: message.title || 'New Message',
           message: message.content,
           type: 'GENERAL_ANNOUNCEMENT',
           category: message.messageType,

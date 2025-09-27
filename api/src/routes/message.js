@@ -1,16 +1,28 @@
 const express = require('express');
-const { body, param, query } = require('express-validator');
+const { body, param, query, validationResult } = require('express-validator');
 const router = express.Router();
 
 const MessageController = require('../controllers/messageController');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
 
+// Validation error handler
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors: errors.array()
+    });
+  }
+  next();
+};
+
 // Validation middleware
 const validatePostMessage = [
   body('title')
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage('Message title is required')
     .isLength({ min: 5, max: 200 })
     .withMessage('Title must be between 5 and 200 characters'),
   
@@ -229,6 +241,7 @@ router.post(
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
   validateParams[0], // buildingId validation
   validatePostMessage,
+  handleValidationErrors,
   MessageController.postMessage
 );
 
@@ -248,6 +261,7 @@ router.get(
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
   validateParams[0], // buildingId validation
   validateQuery,
+  handleValidationErrors,
   MessageController.getMessages
 );
 
@@ -257,6 +271,7 @@ router.get(
   authenticateToken,
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
   validateParams,
+  handleValidationErrors,
   MessageController.getMessageById
 );
 
@@ -267,6 +282,7 @@ router.put(
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
   validateParams,
   validateUpdateMessage,
+  handleValidationErrors,
   MessageController.updateMessage
 );
 
@@ -277,6 +293,7 @@ router.put(
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
   param('messageId').isMongoId().withMessage('Invalid message ID'),
   validateUpdateMessage,
+  handleValidationErrors,
   MessageController.updateMessageById
 );
 

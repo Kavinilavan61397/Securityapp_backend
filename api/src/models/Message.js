@@ -4,7 +4,7 @@ const messageSchema = new mongoose.Schema({
   // Basic Information
   title: {
     type: String,
-    required: [true, 'Message title is required'],
+    required: false,
     trim: true,
     maxlength: [200, 'Title cannot exceed 200 characters']
   },

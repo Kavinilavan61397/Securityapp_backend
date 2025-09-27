@@ -103,8 +103,9 @@ const validateUpdateMessage = [
     .withMessage('Title must be between 5 and 200 characters'),
   
   body('content')
-    .optional()
     .trim()
+    .notEmpty()
+    .withMessage('Message content is required')
     .isLength({ min: 10, max: 2000 })
     .withMessage('Content must be between 10 and 2000 characters'),
   
@@ -267,6 +268,16 @@ router.put(
   validateParams,
   validateUpdateMessage,
   MessageController.updateMessage
+);
+
+// Update message (alternative route for direct messageId)
+router.put(
+  '/:messageId',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  param('messageId').isMongoId().withMessage('Invalid message ID'),
+  validateUpdateMessage,
+  MessageController.updateMessageById
 );
 
 // Delete message

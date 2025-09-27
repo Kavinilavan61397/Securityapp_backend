@@ -379,7 +379,112 @@ class MessageController {
 
       // Update message
       const updateData = {};
-      if (title) updateData.title = title;
+      if (title !== undefined) updateData.title = title;
+      if (content) updateData.content = content;
+      if (messageType) updateData.messageType = messageType;
+      if (priority) updateData.priority = priority;
+      if (targetAudience) updateData.targetAudience = targetAudience;
+      if (specificTargets) updateData.specificTargets = specificTargets;
+      if (scheduledAt !== undefined) updateData.scheduledAt = scheduledAt ? new Date(scheduledAt) : undefined;
+      if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : undefined;
+      if (tags) updateData.tags = tags;
+      if (isPinned !== undefined) updateData.isPinned = isPinned;
+
+      const updatedMessage = await Message.findByIdAndUpdate(
+        messageId,
+        updateData,
+        { new: true, runValidators: true }
+      ).populate([
+        { path: 'buildingId', select: 'name address' },
+        { path: 'postedBy', select: 'name email role' }
+      ]);
+
+      console.log('✅ Message updated successfully:', updatedMessage._id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Message updated successfully',
+        data: {
+          message: updatedMessage.getSummary(),
+          building: {
+            id: building._id,
+            name: building.name
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Update message error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update message',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Update message by ID (alternative route)
+   */
+  static async updateMessageById(req, res) {
+    try {
+      const { messageId } = req.params;
+      const { 
+        title, 
+        content, 
+        messageType, 
+        priority, 
+        targetAudience, 
+        specificTargets,
+        scheduledAt,
+        expiresAt,
+        tags,
+        isPinned
+      } = req.body;
+      const { userId, role } = req.user;
+
+      // Get message first to get buildingId
+      const message = await Message.findOne({ 
+        _id: messageId, 
+        isActive: true,
+        isDeleted: false
+      });
+
+      if (!message) {
+        return res.status(404).json({
+          success: false,
+          message: 'Message not found'
+        });
+      }
+
+      // Verify building exists
+      const building = await Building.findById(message.buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Check permissions
+      if (false && role === 'BUILDING_ADMIN' && building.adminId && building.adminId.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only update messages in your assigned building.'
+        });
+      }
+
+      // Check if user can edit this message
+      if (message.postedBy.toString() !== userId && role !== 'SUPER_ADMIN') {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only edit your own messages.'
+        });
+      }
+
+      // Update message
+      const updateData = {};
+      if (title !== undefined) updateData.title = title;
       if (content) updateData.content = content;
       if (messageType) updateData.messageType = messageType;
       if (priority) updateData.priority = priority;
@@ -600,7 +705,7 @@ class MessageController {
           recipientRole: 'RESIDENT',
           title: message.title,
           message: message.content,
-          type: 'MESSAGE',
+          type: 'GENERAL_ANNOUNCEMENT',
           category: message.messageType,
           priority: message.priority,
           buildingId,

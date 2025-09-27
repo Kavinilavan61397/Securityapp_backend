@@ -34,12 +34,18 @@ const visitSchema = new mongoose.Schema({
   hostId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Host ID is required']
+    required: false
   },
   
   hostFlatNumber: {
     type: String,
     required: false
+  },
+
+  blockNumber: {
+    type: String,
+    required: false,
+    trim: true
   },
   
   // Visit Details

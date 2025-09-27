@@ -30,6 +30,7 @@ class VisitController {
         visitorId,
         hostId,
         hostFlatNumber,
+        blockNumber,
         purpose,
         visitType = 'WALK_IN',
         scheduledDate,
@@ -57,13 +58,16 @@ class VisitController {
         });
       }
 
-      // Validate host exists and belongs to building
-      const host = await User.findById(hostId);
-      if (!host || host.buildingId.toString() !== buildingId) {
-        return res.status(404).json({
-          success: false,
-          message: 'Host not found or does not belong to this building'
-        });
+      // Validate host exists and belongs to building (only if hostId is provided)
+      let host = null;
+      if (hostId) {
+        host = await User.findById(hostId);
+        if (!host || host.buildingId.toString() !== buildingId) {
+          return res.status(404).json({
+            success: false,
+            message: 'Host not found or does not belong to this building'
+          });
+        }
       }
 
       // Generate unique visit ID
@@ -87,12 +91,12 @@ class VisitController {
       const qrCodeExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
       // Create visit
-      const visit = new Visit({
+      const visitData = {
         visitId,
         visitorId,
         buildingId,
-        hostId,
         hostFlatNumber,
+        blockNumber,
         purpose,
         visitType,
         approvalStatus: visitType === 'PRE_APPROVED' ? 'APPROVED' : 'PENDING',
@@ -104,7 +108,14 @@ class VisitController {
         vehicleNumber,
         vehicleType,
         status: visitType === 'PRE_APPROVED' ? 'SCHEDULED' : 'SCHEDULED'
-      });
+      };
+
+      // Only add hostId if provided
+      if (hostId) {
+        visitData.hostId = hostId;
+      }
+
+      const visit = new Visit(visitData);
 
       await visit.save();
 
@@ -114,8 +125,8 @@ class VisitController {
         lastVisitAt: new Date()
       });
 
-      // Create notification for host
-      if (visitType !== 'PRE_APPROVED') {
+      // Create notification for host (only if hostId is provided)
+      if (visitType !== 'PRE_APPROVED' && hostId && host) {
         try {
           await Notification.create({
             notificationId: `NOTIF_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,

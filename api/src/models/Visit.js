@@ -75,6 +75,12 @@ const visitSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+
+  approvedByName: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Approved by name cannot exceed 100 characters']
+  },
   
   approvedAt: {
     type: Date
@@ -256,6 +262,14 @@ visitSchema.methods.generateQRCode = function() {
 visitSchema.methods.approve = function(approvedBy) {
   this.approvalStatus = 'APPROVED';
   this.approvedBy = approvedBy;
+  this.approvedAt = new Date();
+  this.status = 'SCHEDULED';
+  return this.save();
+};
+
+visitSchema.methods.approveByName = function(approvedByName) {
+  this.approvalStatus = 'APPROVED';
+  this.approvedByName = approvedByName;
   this.approvedAt = new Date();
   this.status = 'SCHEDULED';
   return this.save();

@@ -305,6 +305,88 @@ class VisitController {
   }
 
   /**
+   * Approve visit by resident name
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async approveVisitByName(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const { buildingId, visitId } = req.params;
+      const { approvedByName } = req.body;
+      const { userId, role } = req.user;
+
+      // Find the visit
+      const visit = await Visit.findOne({
+        $or: [
+          { _id: visitId },
+          { visitId: visitId }
+        ],
+        buildingId,
+        isActive: true
+      });
+
+      if (!visit) {
+        return res.status(404).json({
+          success: false,
+          message: 'Visit not found'
+        });
+      }
+
+      // Check if visit is in pending status
+      if (visit.approvalStatus !== 'PENDING') {
+        return res.status(400).json({
+          success: false,
+          message: 'Visit is not in pending status for approval'
+        });
+      }
+
+      // Approve the visit by name
+      await visit.approveByName(approvedByName);
+
+      // Populate the updated visit
+      await visit.populate([
+        { path: 'visitorId', select: 'name phoneNumber email' },
+        { path: 'hostId', select: 'name flatNumber' }
+      ]);
+
+      console.log('✅ Visit approved by name:', approvedByName, 'for visit:', visit.visitId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Visit approved successfully',
+        data: {
+          visit: {
+            visitId: visit.visitId,
+            approvalStatus: visit.approvalStatus,
+            approvedByName: visit.approvedByName,
+            approvedAt: visit.approvedAt,
+            status: visit.status,
+            visitor: visit.visitorId,
+            host: visit.hostId
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Approve visit by name error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to approve visit',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
    * Update visit (approve/reject/cancel)
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object

@@ -44,6 +44,14 @@ const registerValidation = [
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),
+
+  body('confirmPassword')
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error('Passwords do not match');
+      }
+      return true;
+    }),
   
   body('role')
     .isIn(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT'])
@@ -64,6 +72,30 @@ const registerValidation = [
     .trim()
     .isLength({ max: 20 })
     .withMessage('Flat number cannot exceed 20 characters'),
+
+  body('blockNumber')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Block number cannot exceed 20 characters'),
+
+  body('societyName')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Society name cannot exceed 100 characters'),
+
+  body('area')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Area cannot exceed 100 characters'),
+
+  body('city')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('City cannot exceed 100 characters'),
   
   body('tenantType')
     .optional()
@@ -115,6 +147,17 @@ const registerValidation = [
     .optional()
     .isIn(['MALE', 'FEMALE', 'OTHER'])
     .withMessage('Gender must be MALE, FEMALE, or OTHER'),
+
+  // OTP Verification fields
+  body('phoneOTP')
+    .optional()
+    .isLength({ min: 4, max: 4 })
+    .withMessage('Phone OTP must be exactly 4 digits'),
+
+  body('emailOTP')
+    .optional()
+    .isLength({ min: 4, max: 4 })
+    .withMessage('Email OTP must be exactly 4 digits'),
   
   body('address')
     .optional()
@@ -442,5 +485,176 @@ router.delete('/admin/users/:userId',
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
   authController.deleteAccount
 );
+
+/**
+ * 3-Step Registration Flow
+ */
+
+// Step 1: Personal Details + Password Confirmation
+const step1Validation = [
+  body('name')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters'),
+  
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  
+  body('phoneNumber')
+    .matches(/^[+]?[\d\s\-\(\)]+$/)
+    .withMessage('Please provide a valid phone number'),
+  
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
+
+  body('confirmPassword')
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error('Passwords do not match');
+      }
+      return true;
+    }),
+  
+  body('role')
+    .isIn(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT'])
+    .withMessage('Invalid role specified'),
+  
+  body('buildingId')
+    .if(body('role').isIn(['BUILDING_ADMIN', 'SECURITY']))
+    .isMongoId()
+    .withMessage('Building ID is required and must be valid'),
+  
+  body('employeeCode')
+    .if(body('role').isIn(['BUILDING_ADMIN', 'SECURITY']))
+    .notEmpty()
+    .withMessage('Employee code is required for this role'),
+  
+  body('dateOfBirth')
+    .optional()
+    .custom((value) => {
+      if (value) {
+        const formats = [
+          /^\d{2}\/\d{2}\/\d{4}$/, // dd/mm/yyyy
+          /^\d{4}-\d{2}-\d{2}$/,   // yyyy-mm-dd
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ // ISO8601
+        ];
+        
+        const isValidFormat = formats.some(format => format.test(value));
+        if (!isValidFormat) {
+          throw new Error('Date of birth must be in dd/mm/yyyy, yyyy-mm-dd, or ISO8601 format');
+        }
+        
+        let date;
+        if (value.includes('/')) {
+          const [day, month, year] = value.split('/');
+          date = new Date(year, month - 1, day);
+        } else {
+          date = new Date(value);
+        }
+        
+        if (isNaN(date.getTime())) {
+          throw new Error('Date of birth must be a valid date');
+        }
+        
+        if (date >= new Date()) {
+          throw new Error('Date of birth must be in the past');
+        }
+      }
+      return true;
+    }),
+  
+  body('age')
+    .optional()
+    .isInt({ min: 1, max: 120 })
+    .withMessage('Age must be between 1 and 120'),
+  
+  body('gender')
+    .optional()
+    .isIn(['MALE', 'FEMALE', 'OTHER'])
+    .withMessage('Gender must be MALE, FEMALE, or OTHER')
+];
+
+// Step 2: OTP Verification
+const step2Validation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  
+  body('phoneOTP')
+    .isLength({ min: 4, max: 4 })
+    .withMessage('Phone OTP must be exactly 4 digits'),
+
+  body('emailOTP')
+    .isLength({ min: 4, max: 4 })
+    .withMessage('Email OTP must be exactly 4 digits')
+];
+
+// Step 3: Address Details
+const step3Validation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  
+  body('flatNumber')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Flat number cannot exceed 20 characters'),
+
+  body('blockNumber')
+    .optional()
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('Block number cannot exceed 20 characters'),
+
+  body('societyName')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Society name cannot exceed 100 characters'),
+
+  body('area')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Area cannot exceed 100 characters'),
+
+  body('city')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('City cannot exceed 100 characters'),
+  
+  body('tenantType')
+    .optional()
+    .isIn(['OWNER', 'TENANT'])
+    .withMessage('Tenant type must be either OWNER or TENANT')
+];
+
+/**
+ * @route   POST /api/auth/register/step1
+ * @desc    Step 1: Personal Details + Password Confirmation
+ * @access  Public
+ */
+router.post('/register/step1', step1Validation, authController.registerStep1);
+
+/**
+ * @route   POST /api/auth/register/step2
+ * @desc    Step 2: OTP Verification
+ * @access  Public
+ */
+router.post('/register/step2', step2Validation, authController.registerStep2);
+
+/**
+ * @route   POST /api/auth/register/step3
+ * @desc    Step 3: Address Details
+ * @access  Public
+ */
+router.post('/register/step3', step3Validation, authController.registerStep3);
 
 module.exports = router;

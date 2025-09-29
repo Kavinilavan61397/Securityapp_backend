@@ -45,7 +45,11 @@ class AuthController {
         });
       }
 
-      const { name, username, email, phoneNumber, password, role, buildingId, employeeCode, flatNumber, tenantType, dateOfBirth, age, gender, address, completeAddress, city, pincode } = req.body;
+      const { 
+        name, username, email, phoneNumber, password, confirmPassword, role, buildingId, employeeCode, 
+        flatNumber, blockNumber, societyName, area, city, tenantType, dateOfBirth, age, gender, 
+        address, completeAddress, pincode, phoneOTP, emailOTP 
+      } = req.body;
 
       // Convert dateOfBirth to proper Date object
       let formattedDateOfBirth;
@@ -87,6 +91,16 @@ class AuthController {
 
       // Note: flatNumber and tenantType are now optional for residents
 
+      // OTP Verification (if provided)
+      if (phoneOTP && emailOTP) {
+        if (phoneOTP !== "1234" || emailOTP !== "1234") {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid OTP. Please enter 1234 for both phone and email OTP'
+          });
+        }
+      }
+
       // Create user
       const user = new User({
         name,
@@ -98,16 +112,24 @@ class AuthController {
         buildingId,
         employeeCode,
         flatNumber,
+        blockNumber,
+        societyName,
+        area,
+        city,
         tenantType,
         dateOfBirth: formattedDateOfBirth,
         age,
         gender,
         address,
         completeAddress,
-        city,
         pincode,
         isVerified: role === 'SUPER_ADMIN' ? true : false, // Super admins are auto-verified
         // Enhanced verification system (additive)
+        otpVerification: {
+          phoneVerified: phoneOTP === "1234",
+          emailVerified: emailOTP === "1234",
+          verifiedAt: (phoneOTP === "1234" && emailOTP === "1234") ? new Date() : null
+        },
         verification: {
           isVerified: role === 'SUPER_ADMIN' ? true : false,
           verificationLevel: role === 'SUPER_ADMIN' ? 'VERIFIED' : 'PENDING',
@@ -1178,6 +1200,277 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Step 1: Personal Details + Password Confirmation
+   * POST /api/auth/register/step1
+   */
+  async registerStep1(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const { 
+        name, email, phoneNumber, password, confirmPassword, role, buildingId, 
+        employeeCode, dateOfBirth, age, gender 
+      } = req.body;
+
+      // Convert dateOfBirth to proper Date object
+      let formattedDateOfBirth;
+      if (dateOfBirth) {
+        if (dateOfBirth.includes('/')) {
+          const [day, month, year] = dateOfBirth.split('/');
+          formattedDateOfBirth = new Date(year, month - 1, day);
+        } else {
+          formattedDateOfBirth = new Date(dateOfBirth);
+        }
+      }
+
+      // Check if user already exists
+      const existingUser = await User.findOne({ 
+        $or: [{ email }, { phoneNumber }] 
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email or phone number already exists'
+        });
+      }
+
+      // Validate role-specific requirements
+      if (['BUILDING_ADMIN', 'SECURITY'].includes(role) && !employeeCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Employee code is required for this role'
+        });
+      }
+
+      // Create user with basic info (not saved yet)
+      const userData = {
+        name,
+        email,
+        phoneNumber,
+        password,
+        role,
+        buildingId,
+        employeeCode,
+        dateOfBirth: formattedDateOfBirth,
+        age,
+        gender,
+        isVerified: false,
+        otpVerification: {
+          phoneVerified: false,
+          emailVerified: false,
+          phoneOTP: "1234",
+          emailOTP: "1234"
+        },
+        verification: {
+          isVerified: false,
+          verificationLevel: 'PENDING',
+          verificationType: 'AUTOMATIC'
+        }
+      };
+
+      // Store user data in session/temp storage for next steps
+      // For now, we'll create the user but mark as incomplete
+      const user = new User(userData);
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Step 1 completed. Please proceed to OTP verification.',
+        data: {
+          step: 1,
+          nextStep: 'OTP Verification',
+          user: {
+            name: user.name,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            role: user.role
+          },
+          instructions: {
+            phoneOTP: "Enter 1234 for phone OTP",
+            emailOTP: "Enter 1234 for email OTP"
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Register Step 1 error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to complete step 1',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Step 2: OTP Verification
+   * POST /api/auth/register/step2
+   */
+  async registerStep2(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const { email, phoneOTP, emailOTP } = req.body;
+
+      // Find user by email
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found. Please complete step 1 first.'
+        });
+      }
+
+      // Verify OTPs
+      if (phoneOTP !== "1234" || emailOTP !== "1234") {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid OTP. Please enter 1234 for both phone and email OTP'
+        });
+      }
+
+      // Update OTP verification status
+      user.otpVerification.phoneVerified = true;
+      user.otpVerification.emailVerified = true;
+      user.otpVerification.verifiedAt = new Date();
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'OTP verification completed. Please proceed to address details.',
+        data: {
+          step: 2,
+          nextStep: 'Address Details',
+          user: {
+            name: user.name,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            role: user.role
+          },
+          otpVerification: {
+            phoneVerified: true,
+            emailVerified: true,
+            verifiedAt: user.otpVerification.verifiedAt
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Register Step 2 error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to complete OTP verification',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Step 3: Address Details
+   * POST /api/auth/register/step3
+   */
+  async registerStep3(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array()
+        });
+      }
+
+      const { 
+        email, flatNumber, blockNumber, societyName, area, city, tenantType 
+      } = req.body;
+
+      // Find user by email
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found. Please complete previous steps first.'
+        });
+      }
+
+      // Check if OTP verification is completed
+      if (!user.otpVerification.phoneVerified || !user.otpVerification.emailVerified) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please complete OTP verification first.'
+        });
+      }
+
+      // Update user with address details
+      user.flatNumber = flatNumber;
+      user.blockNumber = blockNumber;
+      user.societyName = societyName;
+      user.area = area;
+      user.city = city;
+      user.tenantType = tenantType || 'OWNER';
+      
+      // Mark user as verified and active
+      user.isVerified = true;
+      user.verification.isVerified = true;
+      user.verification.verificationLevel = 'VERIFIED';
+      user.verification.verifiedAt = new Date();
+      
+      await user.save();
+
+      // Generate JWT token
+      const token = AuthController.generateToken(user);
+
+      res.status(201).json({
+        success: true,
+        message: 'Registration completed successfully!',
+        data: {
+          step: 3,
+          completed: true,
+          user: {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            role: user.role,
+            flatNumber: user.flatNumber,
+            blockNumber: user.blockNumber,
+            societyName: user.societyName,
+            area: user.area,
+            city: user.city,
+            tenantType: user.tenantType,
+            isVerified: user.isVerified,
+            otpVerification: user.otpVerification
+          },
+          token: token
+        }
+      });
+
+    } catch (error) {
+      console.error('Register Step 3 error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to complete registration',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
       });
     }

@@ -51,6 +51,15 @@ const validateVisitUpdate = [
   body('securityNotes').optional().trim().isLength({ max: 1000 }).withMessage('Security notes cannot exceed 1000 characters')
 ];
 
+const validateVisitApprovalByName = [
+  body('approvedByName')
+    .notEmpty()
+    .withMessage('Approved by name is required')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Approved by name must be between 2 and 100 characters')
+];
+
 const validateCheckIn = [
   body('qrCode').notEmpty().withMessage('QR code is required'),
   body('entryPhotoId').optional().isMongoId().withMessage('Invalid entry photo ID'),
@@ -105,6 +114,15 @@ router.get('/:buildingId/:visitId',
   buildingAccess,
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   VisitController.getVisitById
+);
+
+// Approve visit by resident name
+router.put('/:buildingId/:visitId/approve-by-name',
+  validateParams,
+  validateVisitApprovalByName,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
+  VisitController.approveVisitByName
 );
 
 // Update visit (approve/reject/cancel)

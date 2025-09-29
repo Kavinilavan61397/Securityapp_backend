@@ -81,6 +81,30 @@ const userSchema = new mongoose.Schema({
     trim: true,
     maxlength: [20, 'Flat number cannot exceed 20 characters']
   },
+
+  blockNumber: {
+    type: String,
+    trim: true,
+    maxlength: [20, 'Block number cannot exceed 20 characters']
+  },
+
+  societyName: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Society name cannot exceed 100 characters']
+  },
+
+  area: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Area cannot exceed 100 characters']
+  },
+
+  city: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'City cannot exceed 100 characters']
+  },
   
   tenantType: {
     type: String,
@@ -136,6 +160,29 @@ const userSchema = new mongoose.Schema({
     attempts: {
       type: Number,
       default: 0
+    }
+  },
+
+  // OTP Verification System
+  otpVerification: {
+    phoneVerified: {
+      type: Boolean,
+      default: false
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false
+    },
+    phoneOTP: {
+      type: String,
+      default: "1234"
+    },
+    emailOTP: {
+      type: String,
+      default: "1234"
+    },
+    verifiedAt: {
+      type: Date
     }
   },
   

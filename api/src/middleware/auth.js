@@ -318,6 +318,60 @@ const otpRateLimit = () => {
   };
 };
 
+/**
+ * Admin Approval Status Check
+ * Ensures user has been approved by admin before accessing restricted features
+ * @param {Array} allowedStatuses - Array of allowed approval statuses
+ * @returns {Function} Middleware function
+ */
+const requireApproval = (allowedStatuses = ['APPROVED']) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        });
+      }
+
+      // Get user with approval status
+      const user = await User.findById(req.user.userId).select('approvalStatus role');
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Super admins and building admins don't need approval
+      if (['SUPER_ADMIN', 'BUILDING_ADMIN'].includes(user.role)) {
+        return next();
+      }
+
+      // Check approval status
+      if (!allowedStatuses.includes(user.approvalStatus)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Account pending admin approval. Please wait for approval to access this feature.',
+          data: {
+            approvalStatus: user.approvalStatus,
+            status: 'PENDING_APPROVAL'
+          }
+        });
+      }
+
+      next();
+
+    } catch (error) {
+      console.error('Approval check error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  };
+};
+
 // Export middleware functions
 module.exports = {
   authenticateToken,
@@ -325,5 +379,6 @@ module.exports = {
   requirePermission,
   buildingAccess,
   requireVerification,
-  otpRateLimit
+  otpRateLimit,
+  requireApproval
 };

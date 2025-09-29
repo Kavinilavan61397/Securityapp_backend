@@ -118,6 +118,13 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   
+  // Admin Approval Status
+  approvalStatus: {
+    type: String,
+    enum: ['PENDING', 'APPROVED', 'REJECTED'],
+    default: 'PENDING'
+  },
+  
   // Enhanced Verification System (Additive)
   verification: {
     isVerified: {

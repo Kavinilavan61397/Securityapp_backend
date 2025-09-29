@@ -1430,10 +1430,11 @@ class AuthController {
       user.city = city;
       user.tenantType = tenantType || 'OWNER';
       
-      // Mark user as verified and active
+      // Mark user as verified but PENDING admin approval
       user.isVerified = true;
+      user.approvalStatus = 'PENDING'; // Set to PENDING for admin approval
       user.verification.isVerified = true;
-      user.verification.verificationLevel = 'VERIFIED';
+      user.verification.verificationLevel = 'PENDING'; // Keep as PENDING until admin approval
       user.verification.verifiedAt = new Date();
       
       await user.save();
@@ -1471,6 +1472,201 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Failed to complete registration',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Get Pending Residents for Admin Approval
+   * GET /api/admin/pending-residents
+   */
+  async getPendingResidents(req, res) {
+    try {
+      const currentUserRole = req.user.role;
+      const currentUserBuildingId = req.user.buildingId;
+      
+      // Build query based on admin role
+      let query = {
+        role: 'RESIDENT',
+        approvalStatus: 'PENDING',
+        isActive: true
+      };
+      
+      if (currentUserRole === 'BUILDING_ADMIN') {
+        // Building admin can only see residents in their building
+        query.buildingId = currentUserBuildingId;
+      }
+      // SUPER_ADMIN can see all pending residents
+
+      // Get pagination parameters
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+
+      // Get total count and residents
+      const totalResidents = await User.countDocuments(query);
+      const residents = await User.find(query)
+        .select('name email phoneNumber age gender flatNumber blockNumber societyName area city tenantType dateOfBirth createdAt')
+        .populate('buildingId', 'name address')
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 });
+
+      // Calculate pagination
+      const totalPages = Math.ceil(totalResidents / limit);
+      const hasNextPage = page < totalPages;
+      const hasPrevPage = page > 1;
+
+      res.status(200).json({
+        success: true,
+        message: 'Pending residents retrieved successfully',
+        data: {
+          residents: residents.map(resident => ({
+            _id: resident._id,
+            name: resident.name,
+            email: resident.email,
+            phoneNumber: resident.phoneNumber,
+            age: resident.age,
+            gender: resident.gender,
+            flatNumber: resident.flatNumber,
+            blockNumber: resident.blockNumber,
+            societyName: resident.societyName,
+            area: resident.area,
+            city: resident.city,
+            tenantType: resident.tenantType,
+            dateOfBirth: resident.dateOfBirth,
+            building: resident.buildingId,
+            createdAt: resident.createdAt
+          })),
+          pagination: {
+            currentPage: page,
+            totalPages,
+            totalResidents,
+            hasNextPage,
+            hasPrevPage
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get pending residents error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Approve or Deny Resident
+   * PUT /api/admin/residents/:userId/approve
+   */
+  async approveResident(req, res) {
+    try {
+      const { userId } = req.params;
+      const { action, notes } = req.body;
+      const adminId = req.user.userId;
+      const adminRole = req.user.role;
+
+      // Find the resident
+      const resident = await User.findById(userId);
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident not found'
+        });
+      }
+
+      // Check if resident is in pending status
+      if (resident.approvalStatus !== 'PENDING') {
+        return res.status(400).json({
+          success: false,
+          message: `Resident is already ${resident.approvalStatus.toLowerCase()}`
+        });
+      }
+
+      // Check building access for BUILDING_ADMIN
+      if (adminRole === 'BUILDING_ADMIN' && 
+          resident.buildingId && 
+          resident.buildingId.toString() !== req.user.buildingId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only approve residents in your building.'
+        });
+      }
+
+      // Find the admin performing the action
+      const admin = await User.findById(adminId);
+      if (!admin) {
+        return res.status(404).json({
+          success: false,
+          message: 'Admin not found'
+        });
+      }
+
+      // Update resident status
+      const newStatus = action === 'approve' ? 'APPROVED' : 'REJECTED';
+      resident.approvalStatus = newStatus;
+      
+      // Update verification status
+      if (action === 'approve') {
+        resident.verification.isVerified = true;
+        resident.verification.verificationLevel = 'VERIFIED';
+        resident.verification.verifiedAt = new Date();
+        resident.verification.verifiedBy = adminId;
+        resident.verification.verificationNotes = notes || '';
+        resident.verification.verificationType = 'MANUAL';
+      } else {
+        resident.verification.isVerified = false;
+        resident.verification.verificationLevel = 'REJECTED';
+        resident.verification.verifiedAt = new Date();
+        resident.verification.verifiedBy = adminId;
+        resident.verification.verificationNotes = notes || 'Resident application rejected';
+        resident.verification.verificationType = 'MANUAL';
+      }
+
+      await resident.save();
+
+      res.status(200).json({
+        success: true,
+        message: `Resident ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+        data: {
+          resident: {
+            _id: resident._id,
+            name: resident.name,
+            email: resident.email,
+            phoneNumber: resident.phoneNumber,
+            flatNumber: resident.flatNumber,
+            blockNumber: resident.blockNumber,
+            societyName: resident.societyName,
+            area: resident.area,
+            city: resident.city,
+            tenantType: resident.tenantType,
+            approvalStatus: resident.approvalStatus,
+            verification: {
+              isVerified: resident.verification.isVerified,
+              verificationLevel: resident.verification.verificationLevel,
+              verifiedAt: resident.verification.verifiedAt,
+              verificationNotes: resident.verification.verificationNotes
+            }
+          },
+          admin: {
+            id: admin._id,
+            name: admin.name,
+            role: admin.role
+          },
+          action: action,
+          timestamp: new Date()
+        }
+      });
+
+    } catch (error) {
+      console.error('Approve resident error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
       });
     }

@@ -657,4 +657,52 @@ router.post('/register/step2', step2Validation, authController.registerStep2);
  */
 router.post('/register/step3', step3Validation, authController.registerStep3);
 
+/**
+ * Admin Approval Routes
+ */
+
+// Validation for admin approval
+const adminApprovalValidation = [
+  body('action')
+    .isIn(['approve', 'deny'])
+    .withMessage('Action must be either approve or deny'),
+  
+  body('notes')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Notes cannot exceed 500 characters')
+];
+
+// User ID validation for admin routes
+const validateAdminUserId = [
+  param('userId')
+    .isMongoId()
+    .withMessage('Invalid user ID')
+];
+
+/**
+ * @route   GET /api/admin/pending-residents
+ * @desc    Get all pending residents for admin approval
+ * @access  Private (Admin only)
+ */
+router.get('/admin/pending-residents',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authController.getPendingResidents
+);
+
+/**
+ * @route   PUT /api/admin/residents/:userId/approve
+ * @desc    Approve or deny a resident
+ * @access  Private (Admin only)
+ */
+router.put('/admin/residents/:userId/approve',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  validateAdminUserId,
+  adminApprovalValidation,
+  authController.approveResident
+);
+
 module.exports = router;

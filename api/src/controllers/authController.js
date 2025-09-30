@@ -1439,6 +1439,9 @@ class AuthController {
       
       await user.save();
 
+      // Populate building details for better UI experience
+      await user.populate('buildingId', 'name address');
+
       // Generate JWT token
       const token = AuthController.generateToken(user);
 
@@ -1454,6 +1457,8 @@ class AuthController {
             email: user.email,
             phoneNumber: user.phoneNumber,
             role: user.role,
+            buildingId: user.buildingId,
+            building: user.buildingId, // Populated building details
             flatNumber: user.flatNumber,
             blockNumber: user.blockNumber,
             societyName: user.societyName,

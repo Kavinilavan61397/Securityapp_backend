@@ -51,7 +51,7 @@ const visitSchema = new mongoose.Schema({
   // Visit Details
   purpose: {
     type: String,
-    required: [true, 'Visit purpose is required'],
+    required: false,
     trim: true,
     maxlength: [200, 'Purpose cannot exceed 200 characters']
   },

@@ -36,7 +36,7 @@ const validateVisitCreation = [
   body('hostId').optional().isMongoId().withMessage('Invalid host ID'),
   body('hostFlatNumber').optional().trim().isLength({ max: 20 }).withMessage('Host flat number cannot exceed 20 characters'),
   body('blockNumber').optional().trim().isString().withMessage('Block number must be a string'),
-  body('purpose').notEmpty().trim().isLength({ min: 5, max: 200 }).withMessage('Purpose must be between 5 and 200 characters'),
+  body('purpose').optional().trim().isLength({ min: 5, max: 200 }).withMessage('Purpose must be between 5 and 200 characters if provided'),
   body('visitType').optional().isIn(['PRE_APPROVED', 'WALK_IN', 'SCHEDULED']).withMessage('Invalid visit type'),
   body('scheduledDate').optional().isISO8601().withMessage('Invalid scheduled date format'),
   body('scheduledTime').optional().matches(/^([01]?[0-9]|2[0-3]):[0-5][0-9](\s?(AM|PM))?$/i).withMessage('Invalid time format (HH:MM or HH:MM AM/PM)'),

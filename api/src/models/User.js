@@ -50,7 +50,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT'],
-    required: [true, 'User role is required'],
+    required: false,
     default: 'RESIDENT'
   },
   

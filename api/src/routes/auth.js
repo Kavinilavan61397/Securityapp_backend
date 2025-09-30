@@ -519,6 +519,7 @@ const step1Validation = [
     }),
   
   body('role')
+    .optional()
     .isIn(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT'])
     .withMessage('Invalid role specified'),
   

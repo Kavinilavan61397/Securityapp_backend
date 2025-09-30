@@ -385,6 +385,40 @@ class BuildingController {
   }
 
   /**
+   * Get public buildings list (for registration dropdown)
+   * No authentication required
+   */
+  static async getPublicBuildings(req, res) {
+    try {
+      // Get all active buildings for registration dropdown
+      const buildings = await Building.find({ isActive: true })
+        .select('name address')
+        .sort({ name: 1 }); // Sort by name alphabetically
+
+      res.status(200).json({
+        success: true,
+        message: 'Buildings retrieved successfully',
+        data: {
+          buildings: buildings.map(building => ({
+            id: building._id,
+            name: building.name,
+            address: building.address,
+            displayName: `${building.name} - ${building.address.city}`
+          }))
+        }
+      });
+
+    } catch (error) {
+      console.error('Get public buildings error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
    * Search buildings
    * Dynamic search with multiple criteria
    */

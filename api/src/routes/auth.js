@@ -524,9 +524,9 @@ const step1Validation = [
     .withMessage('Invalid role specified'),
   
   body('buildingId')
-    .if(body('role').isIn(['BUILDING_ADMIN', 'SECURITY']))
+    .optional()
     .isMongoId()
-    .withMessage('Building ID is required and must be valid'),
+    .withMessage('Building ID must be valid if provided'),
   
   body('employeeCode')
     .if(body('role').isIn(['BUILDING_ADMIN', 'SECURITY']))
@@ -613,11 +613,10 @@ const step3Validation = [
     .isLength({ max: 20 })
     .withMessage('Block number cannot exceed 20 characters'),
 
-  body('societyName')
-    .optional()
+  body('buildingName')
     .trim()
-    .isLength({ max: 100 })
-    .withMessage('Society name cannot exceed 100 characters'),
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Building name must be between 2 and 100 characters'),
 
   body('area')
     .optional()

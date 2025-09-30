@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Building = require('../models/Building');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const emailService = require('../services/emailService');
@@ -1402,7 +1403,7 @@ class AuthController {
       }
 
       const { 
-        email, flatNumber, blockNumber, societyName, area, city, tenantType 
+        email, flatNumber, blockNumber, buildingName, area, city, tenantType 
       } = req.body;
 
       // Find user by email
@@ -1422,10 +1423,24 @@ class AuthController {
         });
       }
 
+      // Find building by name
+      const building = await Building.findOne({ 
+        name: buildingName, 
+        isActive: true 
+      });
+      
+      if (!building) {
+        return res.status(400).json({
+          success: false,
+          message: 'Building not found. Please select a valid building from the list.'
+        });
+      }
+
       // Update user with address details
       user.flatNumber = flatNumber;
       user.blockNumber = blockNumber;
-      user.societyName = societyName;
+      user.buildingId = building._id; // Set buildingId from lookup
+      user.societyName = building.name; // Use building name as society name
       user.area = area;
       user.city = city;
       user.tenantType = tenantType || 'OWNER';

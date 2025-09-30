@@ -225,6 +225,13 @@ router.get('/',
   BuildingController.getBuildings
 );
 
+// Route: Get Public Buildings List (for registration dropdown)
+// GET /api/buildings/public
+// No authentication required - for registration dropdown
+router.get('/public',
+  BuildingController.getPublicBuildings
+);
+
 // Route: Search Buildings
 // GET /api/buildings/search
 // SUPER_ADMIN: All buildings, BUILDING_ADMIN: Only their building

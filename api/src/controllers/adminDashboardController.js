@@ -233,8 +233,8 @@ class AdminDashboardController {
       ])
       .sort({ createdAt: -1 });
 
-      // Filter out visits with null references
-      const validVisits = todayVisits.filter(visit => visit.visitorId && visit.hostId);
+      // Filter out visits with null visitorId (hostId is now optional)
+      const validVisits = todayVisits.filter(visit => visit.visitorId);
 
       // Group visits by status
       const visitsByStatus = {
@@ -268,11 +268,13 @@ class AdminDashboardController {
               serviceType: visit.visitorId.serviceType,
               vehicleNumber: visit.visitorId.vehicleNumber
             },
-            host: {
+            host: visit.hostId ? {
               name: visit.hostId.name,
               phoneNumber: visit.hostId.phoneNumber,
               flatNumber: visit.hostId.flatNumber
-            },
+            } : null,
+            hostFlatNumber: visit.hostFlatNumber || null,
+            blockNumber: visit.blockNumber || null,
             purpose: visit.purpose,
             status: visit.status,
             approvalStatus: visit.approvalStatus,
@@ -358,8 +360,8 @@ class AdminDashboardController {
         })
         .limit(parseInt(limit));
 
-      // Filter out visits where visitorId or hostId is null
-      const filteredActivity = recentActivity.filter(visit => visit.visitorId && visit.hostId);
+      // Filter out visits where visitorId is null (hostId is now optional)
+      const filteredActivity = recentActivity.filter(visit => visit.visitorId);
 
       res.status(200).json({
         success: true,
@@ -376,11 +378,13 @@ class AdminDashboardController {
               serviceType: visit.visitorId.serviceType,
               vehicleNumber: visit.visitorId.vehicleNumber
             },
-            host: {
+            host: visit.hostId ? {
               name: visit.hostId.name,
               phoneNumber: visit.hostId.phoneNumber,
               flatNumber: visit.hostId.flatNumber
-            },
+            } : null,
+            hostFlatNumber: visit.hostFlatNumber || null,
+            blockNumber: visit.blockNumber || null,
             purpose: visit.purpose,
             status: visit.status,
             checkInTime: visit.checkInTime,

@@ -50,13 +50,13 @@ router.get('/today-visits/:buildingId',
 /**
  * @route   GET /api/security/recent-activity/:buildingId
  * @desc    Get recent activity by category
- * @access  Private (Security only)
+ * @access  Private (Security, Building Admin, Super Admin)
  */
 router.get('/recent-activity/:buildingId',
   validateBuildingId,
   validateQuery,
   buildingAccess,
-  authorizeRoles(['SECURITY']),
+  authorizeRoles(['SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   SecurityDashboardController.getRecentActivity
 );
 

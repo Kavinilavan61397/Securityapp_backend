@@ -94,20 +94,56 @@ class AdminDashboardController {
         .sort({ createdAt: -1 })
         .limit(10);
 
+      // Filter out visits with null visitorId before processing
+      const validActivity = recentActivity.filter(visit => visit.visitorId);
+
       // Format recent activity by category
       const activityByCategory = {
-        CABS: recentActivity.filter(visit => 
-          visit.visitorId.visitorCategory === 'CAB_DRIVER'
-        ).slice(0, 3),
-        DELIVERY: recentActivity.filter(visit => 
-          visit.visitorId.visitorCategory === 'DELIVERY_AGENT'
-        ).slice(0, 3),
-        EMPLOYEES: recentActivity.filter(visit => 
-          visit.visitorId.visitorCategory === 'FLAT_EMPLOYEE'
-        ).slice(0, 3),
-        OTHERS: recentActivity.filter(visit => 
-          visit.visitorId.visitorCategory === 'OTHER'
-        ).slice(0, 3)
+        cabs: validActivity.filter(visit => 
+          visit.visitorId && visit.visitorId.visitorCategory === 'CAB_DRIVER'
+        ).slice(0, 3).map(visit => ({
+          id: visit._id,
+          visitId: visit.visitId,
+          visitorName: visit.visitorId.name,
+          visitorPhone: visit.visitorId.phoneNumber,
+          hostName: visit.hostId ? visit.hostId.name : null,
+          hostPhone: visit.hostId ? visit.hostId.phoneNumber : null,
+          hostFlatNumber: visit.hostFlatNumber || null,
+          blockNumber: visit.blockNumber || null,
+          checkInTime: visit.checkInTime,
+          status: visit.status,
+          createdAt: visit.createdAt
+        })),
+        delivery: validActivity.filter(visit => 
+          visit.visitorId && visit.visitorId.visitorCategory === 'DELIVERY_AGENT'
+        ).slice(0, 3).map(visit => ({
+          id: visit._id,
+          visitId: visit.visitId,
+          visitorName: visit.visitorId.name,
+          visitorPhone: visit.visitorId.phoneNumber,
+          hostName: visit.hostId ? visit.hostId.name : null,
+          hostPhone: visit.hostId ? visit.hostId.phoneNumber : null,
+          hostFlatNumber: visit.hostFlatNumber || null,
+          blockNumber: visit.blockNumber || null,
+          checkInTime: visit.checkInTime,
+          status: visit.status,
+          createdAt: visit.createdAt
+        })),
+        employees: validActivity.filter(visit => 
+          visit.visitorId && visit.visitorId.visitorCategory === 'FLAT_EMPLOYEE'
+        ).slice(0, 3).map(visit => ({
+          id: visit._id,
+          visitId: visit.visitId,
+          visitorName: visit.visitorId.name,
+          visitorPhone: visit.visitorId.phoneNumber,
+          hostName: visit.hostId ? visit.hostId.name : null,
+          hostPhone: visit.hostId ? visit.hostId.phoneNumber : null,
+          hostFlatNumber: visit.hostFlatNumber || null,
+          blockNumber: visit.blockNumber || null,
+          checkInTime: visit.checkInTime,
+          status: visit.status,
+          createdAt: visit.createdAt
+        }))
       };
 
       // Get quick actions data

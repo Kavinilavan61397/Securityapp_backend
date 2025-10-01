@@ -62,10 +62,12 @@ const authenticateToken = async (req, res, next) => {
       userId: user._id,
       email: user.email,
       role: user.role,
+      name: user.name,
       buildingId: user.buildingId,
       isVerified: user.isVerified
     };
 
+    console.log('Authenticated user:', { email: user.email, role: user.role, buildingId: user.buildingId });
     next();
 
   } catch (error) {

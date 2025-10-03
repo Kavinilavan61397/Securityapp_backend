@@ -103,13 +103,7 @@ const validateVisitorCreation = [
     .optional()
     .trim()
     .isLength({ max: 50 })
-    .withMessage('Service type cannot exceed 50 characters')
-    .custom((value) => {
-      if (value && !value.startsWith('service(') && !value.endsWith(')')) {
-        throw new Error('Service type should be in format: service(ServiceName)');
-      }
-      return true;
-    }),
+    .withMessage('Service type cannot exceed 50 characters'),
   
   // Employee Code validation (for FLAT_EMPLOYEE category)
   body('employeeCode')
@@ -207,13 +201,7 @@ const validateVisitorUpdate = [
     .optional()
     .trim()
     .isLength({ max: 50 })
-    .withMessage('Service type cannot exceed 50 characters')
-    .custom((value) => {
-      if (value && !value.startsWith('service(') && !value.endsWith(')')) {
-        throw new Error('Service type should be in format: service(ServiceName)');
-      }
-      return true;
-    }),
+    .withMessage('Service type cannot exceed 50 characters'),
   
   // Employee Code validation (for FLAT_EMPLOYEE category)
   body('employeeCode')

@@ -212,18 +212,6 @@ visitorSchema.methods.updateVisitCount = function() {
   return this.save();
 };
 
-// Standardize serviceType format to service(value)
-visitorSchema.methods.standardizeServiceType = function(serviceType) {
-  if (!serviceType) return serviceType;
-  
-  // If already wrapped, return as is
-  if (serviceType.startsWith('service(') && serviceType.endsWith(')')) {
-    return serviceType;
-  }
-  
-  // If not wrapped, wrap it
-  return `service(${serviceType})`;
-};
 
 visitorSchema.methods.blacklist = function(reason) {
   this.isBlacklisted = true;
@@ -282,12 +270,6 @@ visitorSchema.statics.getVisitorStats = function(buildingId) {
 // Pre-save middleware
 visitorSchema.pre('save', function(next) {
   this.updatedAt = new Date();
-  
-  // Standardize serviceType format to service(value)
-  if (this.serviceType) {
-    this.serviceType = this.standardizeServiceType(this.serviceType);
-  }
-  
   next();
 });
 

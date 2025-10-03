@@ -1357,6 +1357,9 @@ class AuthController {
       user.otpVerification.verifiedAt = new Date();
       await user.save();
 
+      // Generate JWT token after OTP verification
+      const token = AuthController.generateToken(user);
+
       res.status(200).json({
         success: true,
         message: 'OTP verification completed. Please proceed to address details.',
@@ -1373,7 +1376,8 @@ class AuthController {
             phoneVerified: true,
             emailVerified: true,
             verifiedAt: user.otpVerification.verifiedAt
-          }
+          },
+          token: token
         }
       });
 
@@ -1457,7 +1461,7 @@ class AuthController {
       // Populate building details for better UI experience
       await user.populate('buildingId', 'name address');
 
-      // Generate JWT token
+      // Generate new JWT token with updated user data
       const token = AuthController.generateToken(user);
 
       res.status(201).json({

@@ -44,7 +44,7 @@ const validateCreateHousehelp = [
 // POST /api/househelp/:buildingId - Create a new househelp
 router.post('/:buildingId',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateBuildingId,
   validateCreateHousehelp,
   createHousehelp
@@ -53,7 +53,7 @@ router.post('/:buildingId',
 // GET /api/househelp/:buildingId - Get all househelp for a resident
 router.get('/:buildingId',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateBuildingId,
   getHousehelp
 );
@@ -61,7 +61,7 @@ router.get('/:buildingId',
 // DELETE /api/househelp/:buildingId/:househelpId - Delete a househelp
 router.delete('/:buildingId/:househelpId',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateBuildingId,
   validateHousehelpId,
   deleteHousehelp

@@ -271,7 +271,7 @@ router.post(
 router.get(
   '/:buildingId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateParams[0], // buildingId validation
   validateQuery,
   EmployeeController.getEmployees
@@ -281,7 +281,7 @@ router.get(
 router.get(
   '/:buildingId/:employeeId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateParams,
   EmployeeController.getEmployeeById
 );
@@ -290,7 +290,7 @@ router.get(
 router.put(
   '/:buildingId/:employeeId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateParams,
   validateUpdateEmployee,
   EmployeeController.updateEmployee
@@ -300,7 +300,7 @@ router.put(
 router.delete(
   '/:buildingId/:employeeId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateParams,
   EmployeeController.deleteEmployee
 );

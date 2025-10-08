@@ -1,5 +1,28 @@
 const AskSociety = require('../models/AskSociety');
 const Building = require('../models/Building');
+const multer = require('multer');
+const path = require('path');
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept only image files
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files (JPEG, PNG, GIF, WebP) are allowed'));
+    }
+  }
+});
 
 /**
  * Create a new Ask Society message
@@ -9,7 +32,7 @@ const createMessage = async (req, res) => {
   try {
     const { buildingId } = req.params;
     const userId = req.user.id || req.user.userId;
-    const { title, message, image, status } = req.body;
+    const { title, message, status } = req.body;
 
     // Verify building exists
     const building = await Building.findById(buildingId);
@@ -20,11 +43,18 @@ const createMessage = async (req, res) => {
       });
     }
 
+    // Handle image upload
+    let imageBase64 = null;
+    if (req.file) {
+      // Convert buffer to base64
+      imageBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
+
     // Create new message
     const askSocietyMessage = new AskSociety({
       title,
       message,
-      image,
+      image: imageBase64,
       status: status || 'OPEN',
       buildingId,
       createdBy: userId
@@ -211,7 +241,7 @@ const updateMessage = async (req, res) => {
   try {
     const { buildingId, messageId } = req.params;
     const userId = req.user.id || req.user.userId;
-    const { title, message, image, status } = req.body;
+    const { title, message, status } = req.body;
 
     // Verify building exists
     const building = await Building.findById(buildingId);
@@ -236,10 +266,16 @@ const updateMessage = async (req, res) => {
       });
     }
 
+    // Handle image update
+    if (req.file) {
+      // Convert new image to base64
+      const imageBase64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      askSocietyMessage.image = imageBase64;
+    }
+
     // Update fields
     if (title !== undefined) askSocietyMessage.title = title;
     if (message !== undefined) askSocietyMessage.message = message;
-    if (image !== undefined) askSocietyMessage.image = image;
     if (status !== undefined) askSocietyMessage.status = status;
 
     await askSocietyMessage.save();
@@ -355,6 +391,7 @@ module.exports = {
   getMessages,
   getMessageById,
   updateMessage,
-  deleteMessage
+  deleteMessage,
+  upload
 };
 

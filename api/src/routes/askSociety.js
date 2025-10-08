@@ -6,7 +6,8 @@ const {
   getMessages, 
   getMessageById, 
   updateMessage, 
-  deleteMessage 
+  deleteMessage,
+  upload
 } = require('../controllers/askSocietyController');
 
 const router = express.Router();
@@ -38,11 +39,6 @@ const validateCreateMessage = [
     .isLength({ min: 1, max: 2000 })
     .withMessage('Message must be between 1 and 2000 characters'),
   
-  body('image')
-    .optional()
-    .isString()
-    .withMessage('Image must be a valid string (base64)'),
-  
   body('status')
     .optional()
     .isIn(['OPEN', 'RESOLVED', 'CLOSED'])
@@ -62,11 +58,6 @@ const validateUpdateMessage = [
     .isLength({ min: 1, max: 2000 })
     .withMessage('Message must be between 1 and 2000 characters'),
   
-  body('image')
-    .optional()
-    .isString()
-    .withMessage('Image must be a valid string (base64)'),
-  
   body('status')
     .optional()
     .isIn(['OPEN', 'RESOLVED', 'CLOSED'])
@@ -80,6 +71,7 @@ router.post('/:buildingId',
   authenticateToken,
   authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN']),
   validateBuildingId,
+  upload.single('image'), // Handle single image file
   validateCreateMessage,
   createMessage
 );
@@ -107,6 +99,7 @@ router.put('/:buildingId/:messageId',
   authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN']),
   validateBuildingId,
   validateMessageId,
+  upload.single('image'), // Handle single image file
   validateUpdateMessage,
   updateMessage
 );

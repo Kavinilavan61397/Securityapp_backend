@@ -36,6 +36,7 @@ const adminDashboardRoutes = require('./src/routes/adminDashboard');
 const messageRoutes = require('./src/routes/message');
 const userProfileRoutes = require('./src/routes/userProfile');
 const askSocietyRoutes = require('./src/routes/askSociety');
+const noticeRoutes = require('./src/routes/notice');
 
 // Initialize Express app
 const app = express();
@@ -151,6 +152,7 @@ app.use('/api/admin-dashboard', adminDashboardRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/user-profile', userProfileRoutes);
 app.use('/api/ask-society', askSocietyRoutes);
+app.use('/api/notices', noticeRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {

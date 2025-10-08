@@ -162,40 +162,40 @@ const validateQuery = [
 
 // Routes
 
-// POST /api/pre-approvals/:buildingId - Create a new pre-approval (RESIDENT only)
+// POST /api/pre-approvals/:buildingId - Create a new pre-approval (All roles)
 router.post('/:buildingId',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   validateBuildingId,
   validateCreatePreApproval,
   handleValidationErrors,
   createPreApproval
 );
 
-// GET /api/pre-approvals/:buildingId - Get all pre-approvals (RESIDENT sees own, SECURITY sees all in building)
+// GET /api/pre-approvals/:buildingId - Get all pre-approvals (All roles)
 router.get('/:buildingId',
   authenticateToken,
-  authorizeRoles(['RESIDENT', 'SECURITY']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   validateBuildingId,
   validateQuery,
   handleValidationErrors,
   getPreApprovals
 );
 
-// GET /api/pre-approvals/:buildingId/:preApprovalId - Get single pre-approval (RESIDENT sees own, SECURITY sees all)
+// GET /api/pre-approvals/:buildingId/:preApprovalId - Get single pre-approval (All roles)
 router.get('/:buildingId/:preApprovalId',
   authenticateToken,
-  authorizeRoles(['RESIDENT', 'SECURITY']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   validateBuildingId,
   validatePreApprovalId,
   handleValidationErrors,
   getPreApproval
 );
 
-// PUT /api/pre-approvals/:buildingId/:preApprovalId - Update pre-approval (RESIDENT only, before approval)
+// PUT /api/pre-approvals/:buildingId/:preApprovalId - Update pre-approval (All roles)
 router.put('/:buildingId/:preApprovalId',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   validateBuildingId,
   validatePreApprovalId,
   validateUpdatePreApproval,
@@ -203,20 +203,20 @@ router.put('/:buildingId/:preApprovalId',
   updatePreApproval
 );
 
-// DELETE /api/pre-approvals/:buildingId/:preApprovalId - Delete pre-approval (RESIDENT only, before approval)
+// DELETE /api/pre-approvals/:buildingId/:preApprovalId - Delete pre-approval (All roles)
 router.delete('/:buildingId/:preApprovalId',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   validateBuildingId,
   validatePreApprovalId,
   handleValidationErrors,
   deletePreApproval
 );
 
-// POST /api/pre-approvals/:buildingId/:preApprovalId/approve - Approve pre-approval (SECURITY only)
+// POST /api/pre-approvals/:buildingId/:preApprovalId/approve - Approve pre-approval (All roles)
 router.post('/:buildingId/:preApprovalId/approve',
   authenticateToken,
-  authorizeRoles(['SECURITY']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   validateBuildingId,
   validatePreApprovalId,
   handleValidationErrors,
@@ -227,10 +227,10 @@ router.post('/:buildingId/:preApprovalId/approve',
   }
 );
 
-// POST /api/pre-approvals/:buildingId/:preApprovalId/reject - Reject pre-approval (SECURITY only)
+// POST /api/pre-approvals/:buildingId/:preApprovalId/reject - Reject pre-approval (All roles)
 router.post('/:buildingId/:preApprovalId/reject',
   authenticateToken,
-  authorizeRoles(['SECURITY']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   validateBuildingId,
   validatePreApprovalId,
   handleValidationErrors,

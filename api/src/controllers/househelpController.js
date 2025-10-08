@@ -58,17 +58,27 @@ const createHousehelp = async (req, res) => {
   }
 };
 
-// Get all househelp for a resident
+// Get all househelp for a building (building-wide access)
 const getHousehelp = async (req, res) => {
   try {
     const { buildingId } = req.params;
-    const userId = req.user.id || req.user.userId;
 
+    // Verify building exists
+    const building = await Building.findById(buildingId);
+    if (!building) {
+      return res.status(404).json({
+        success: false,
+        message: 'Building not found'
+      });
+    }
+
+    // Get all househelp for the building (not user-specific)
     const househelpList = await Househelp.find({
-      residentId: userId,
       buildingId,
       isDeleted: false
-    }).sort({ createdAt: -1 });
+    })
+    .populate('residentId', 'name phoneNumber flatNumber')
+    .sort({ createdAt: -1 });
 
     res.json({
       success: true,
@@ -81,10 +91,19 @@ const getHousehelp = async (req, res) => {
           visitingTime: househelp.visitingTime,
           fullIdentification: househelp.fullIdentification,
           isActive: househelp.isActive,
+          createdBy: househelp.residentId ? {
+            id: househelp.residentId._id,
+            name: househelp.residentId.name,
+            flatNumber: househelp.residentId.flatNumber
+          } : null,
           createdAt: househelp.createdAt,
           updatedAt: househelp.updatedAt
         })),
-        totalCount: househelpList.length
+        totalCount: househelpList.length,
+        building: {
+          id: building._id,
+          name: building.name
+        }
       }
     });
 
@@ -98,15 +117,25 @@ const getHousehelp = async (req, res) => {
   }
 };
 
-// Delete a househelp
+// Delete a househelp (SECURITY, admins, or creator only)
 const deleteHousehelp = async (req, res) => {
   try {
     const { buildingId, househelpId } = req.params;
     const userId = req.user.id || req.user.userId;
+    const userRole = req.user.role;
 
+    // Verify building exists
+    const building = await Building.findById(buildingId);
+    if (!building) {
+      return res.status(404).json({
+        success: false,
+        message: 'Building not found'
+      });
+    }
+
+    // Find househelp
     const househelp = await Househelp.findOne({
       _id: househelpId,
-      residentId: userId,
       buildingId,
       isDeleted: false
     });
@@ -114,7 +143,18 @@ const deleteHousehelp = async (req, res) => {
     if (!househelp) {
       return res.status(404).json({
         success: false,
-        message: 'Househelp not found or access denied'
+        message: 'Househelp not found'
+      });
+    }
+
+    // Check permissions: SECURITY, BUILDING_ADMIN, SUPER_ADMIN, or creator
+    const isCreator = househelp.residentId && househelp.residentId.toString() === userId;
+    const isAuthorized = ['SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN'].includes(userRole);
+
+    if (!isCreator && !isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only SECURITY, admins, or the creator can delete this househelp.'
       });
     }
 
@@ -124,6 +164,8 @@ const deleteHousehelp = async (req, res) => {
     househelp.deletedBy = userId;
     await househelp.save();
 
+    console.log('✅ Househelp deleted successfully:', househelp._id, 'by', userRole, userId);
+
     res.json({
       success: true,
       message: 'Househelp deleted successfully',
@@ -131,7 +173,12 @@ const deleteHousehelp = async (req, res) => {
         househelpId: househelp._id,
         name: househelp.name,
         occupation: househelp.occupation,
-        deletedAt: househelp.deletedAt
+        deletedAt: househelp.deletedAt,
+        deletedBy: {
+          id: userId,
+          name: req.user.name,
+          role: userRole
+        }
       }
     });
 

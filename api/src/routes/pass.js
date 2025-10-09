@@ -3,8 +3,7 @@ const { body, param, query, validationResult } = require('express-validator');
 const router = express.Router();
 
 const passController = require('../controllers/passController');
-const { authenticateToken, authorizeRoles } = require('../middleware/auth');
-const { buildingAccess } = require('../middleware/buildingAccess');
+const { authenticateToken, authorizeRoles, buildingAccess } = require('../middleware/auth');
 
 /**
  * Pass Routes

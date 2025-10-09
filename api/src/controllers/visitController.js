@@ -602,11 +602,11 @@ class VisitController {
       const { qrCode, entryPhotoId, securityNotes } = req.body;
       const { userId, role } = req.user;
 
-      // Only security can perform check-in
-      if (role !== 'SECURITY') {
+      // Only security and building admin can perform check-in
+      if (role !== 'SECURITY' && role !== 'BUILDING_ADMIN') {
         return res.status(403).json({
           success: false,
-          message: 'Only security personnel can perform check-in'
+          message: 'Only security personnel and building admins can perform check-in'
         });
       }
 
@@ -925,11 +925,11 @@ class VisitController {
       const { exitPhotoId, securityNotes } = req.body;
       const { userId, role } = req.user;
 
-      // Only security can perform check-out
-      if (role !== 'SECURITY') {
+      // Only security and building admin can perform check-out
+      if (role !== 'SECURITY' && role !== 'BUILDING_ADMIN') {
         return res.status(403).json({
           success: false,
-          message: 'Only security personnel can perform check-out'
+          message: 'Only security personnel and building admins can perform check-out'
         });
       }
 

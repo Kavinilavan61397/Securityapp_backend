@@ -188,21 +188,21 @@ router.get(
   ResidentApprovalController.getApprovalStats
 );
 
-// Get all resident approvals for a building (Admin only)
+// Get all resident approvals for a building (Admin and Security)
 router.get(
   '/:buildingId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
   validateParams[0], // buildingId validation
   validateQuery,
   ResidentApprovalController.getResidentApprovals
 );
 
-// Get single resident approval (Admin only)
+// Get single resident approval (Admin and Security)
 router.get(
   '/:buildingId/:approvalId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
   validateParams,
   ResidentApprovalController.getResidentApprovalById
 );

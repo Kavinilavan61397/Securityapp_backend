@@ -45,6 +45,7 @@ const getUserProfile = async (req, res) => {
     
     const user = await User.findById(userId)
       .populate('profilePhotoId', 'photoId filename originalName mimeType size base64Data storageType')
+      .populate('buildingId', 'name address.city address.state')
       .select('-password -otp -passwordReset');
     
     if (!user) {
@@ -70,6 +71,16 @@ const getUserProfile = async (req, res) => {
       
       // Keep the URL for backward compatibility
       user.profilePhotoId.photoUrl = `/api/user-profile/me/photo`;
+    }
+    
+    // Add building information for easier access
+    if (user.buildingId) {
+      user.buildingInfo = {
+        buildingId: user.buildingId._id,
+        buildingName: user.buildingId.name,
+        city: user.buildingId.address?.city,
+        state: user.buildingId.address?.state
+      };
     }
     
     res.json({

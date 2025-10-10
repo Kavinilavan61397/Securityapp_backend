@@ -133,14 +133,8 @@ class EmployeeController {
         });
       }
 
-      // Check permissions - Security and Building Admin can access all buildings for now
-      // TODO: Implement proper building assignment check when adminId is properly set
-      if (role === 'BUILDING_ADMIN' && building.adminId && building.adminId.toString() !== userId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. You can only view employees in your assigned building.'
-        });
-      }
+      // Building access is now handled by buildingAccess middleware
+      // No additional permission checks needed here
 
       // Build query
       const query = { buildingId };

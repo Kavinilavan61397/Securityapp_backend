@@ -3,7 +3,7 @@ const { body, param, query, validationResult } = require('express-validator');
 const router = express.Router();
 
 const EmployeeController = require('../controllers/employeeController');
-const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { authenticateToken, authorizeRoles, buildingAccess } = require('../middleware/auth');
 
 // Validation error handler
 const handleValidationErrors = (req, res, next) => {
@@ -274,6 +274,7 @@ router.get(
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateParams[0], // buildingId validation
   validateQuery,
+  buildingAccess, // Add building access control
   EmployeeController.getEmployees
 );
 
@@ -283,6 +284,7 @@ router.get(
   authenticateToken,
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateParams,
+  buildingAccess, // Add building access control
   EmployeeController.getEmployeeById
 );
 

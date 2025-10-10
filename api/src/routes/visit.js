@@ -139,7 +139,7 @@ router.post('/:buildingId/:visitId/checkin',
   validateParams,
   validateCheckIn,
   buildingAccess,
-  authorizeRoles(['SECURITY']),
+  authorizeRoles(['SECURITY', 'BUILDING_ADMIN']),
   VisitController.checkIn
 );
 
@@ -148,7 +148,7 @@ router.post('/:buildingId/:visitId/checkout',
   validateParams,
   validateCheckOut,
   buildingAccess,
-  authorizeRoles(['SECURITY']),
+  authorizeRoles(['SECURITY', 'BUILDING_ADMIN']),
   VisitController.checkOut
 );
 

@@ -402,13 +402,8 @@ class EmployeeController {
         });
       }
 
-      // Check permissions
-      if (role === 'BUILDING_ADMIN' && building.adminId && building.adminId.toString() !== userId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. You can only delete employees in your assigned building.'
-        });
-      }
+      // Building access is now handled by buildingAccess middleware
+      // No additional permission checks needed here
 
       // Get employee
       const employee = await Employee.findOne({ 

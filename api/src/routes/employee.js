@@ -294,6 +294,7 @@ router.put(
   authenticateToken,
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateParams,
+  buildingAccess, // Add building access control
   validateUpdateEmployee,
   EmployeeController.updateEmployee
 );
@@ -304,6 +305,7 @@ router.delete(
   authenticateToken,
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateParams,
+  buildingAccess, // Add building access control
   EmployeeController.deleteEmployee
 );
 

@@ -266,39 +266,32 @@ class AuthController {
         });
 
       } else if (user.role === 'RESIDENT') {
-        // ✅ OTP FLOW - Generate OTP for residents
-        const otpCode = user.generateOTP();
+        // ✅ DIRECT LOGIN - No OTP required for residents
+        const token = AuthController.generateToken(user);
+        
+        // Update last login
+        user.lastLoginAt = new Date();
         await user.save();
-
-        // Send OTP via Email
-        const emailResult = await emailService.sendOTPEmail(
-          user.email,
-          otpCode,
-          user.name,
-          'login'
-        );
-
-        // Log email result for debugging
-        if (!emailResult.success) {
-          console.error('Failed to send login OTP email:', emailResult.error);
-        }
-
+        
         return res.status(200).json({
           success: true,
-          message: 'OTP sent to your email for verification',
+          message: 'Login successful',
           data: {
-            userId: user._id,
-            username: user.username, // Optional display field
-            email: user.email,
-            role: user.role,
-            roleDisplay: user.roleDisplay,
-            buildingId: user.buildingId,
-            flatNumber: user.flatNumber,
-            isVerified: user.isVerified,
-            verificationLevel: user.verification?.verificationLevel || 'PENDING',
-            emailSent: emailResult.success,
-            otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined,
-            requiresOtp: true // Frontend flag
+            token,
+            user: {
+              id: user._id,
+              username: user.username, // Optional display field
+              name: user.name,
+              email: user.email,
+              role: user.role,
+              roleDisplay: user.roleDisplay,
+              buildingId: user.buildingId,
+              flatNumber: user.flatNumber,
+              isVerified: user.isVerified,
+              verificationLevel: user.verification?.verificationLevel || 'PENDING'
+            },
+            expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+            requiresOtp: false // Frontend flag - no OTP required
           }
         });
 

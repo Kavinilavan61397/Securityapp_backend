@@ -223,6 +223,7 @@ const getPreApprovals = async (req, res) => {
     }
 
     const preApprovals = await PreApproval.find(query)
+      .populate('residentId', 'name email phoneNumber flatNumber blockNumber societyName area city tenantType')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -246,7 +247,21 @@ const getPreApprovals = async (req, res) => {
           status: pa.status,
           fullIdentification: pa.fullIdentification,
           createdAt: pa.createdAt,
-          updatedAt: pa.updatedAt
+          updatedAt: pa.updatedAt,
+          resident: {
+            id: pa.residentId?._id,
+            name: pa.residentId?.name,
+            email: pa.residentId?.email,
+            phoneNumber: pa.residentId?.phoneNumber,
+            address: {
+              flatNumber: pa.residentId?.flatNumber,
+              blockNumber: pa.residentId?.blockNumber,
+              societyName: pa.residentId?.societyName,
+              area: pa.residentId?.area,
+              city: pa.residentId?.city,
+              tenantType: pa.residentId?.tenantType
+            }
+          }
         })),
         pagination: {
           currentPage: parseInt(page),

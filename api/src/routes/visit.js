@@ -139,7 +139,7 @@ router.put('/:buildingId/:visitId',
   validateParams,
   validateVisitUpdate,
   buildingAccess,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   VisitController.updateVisit
 );
 

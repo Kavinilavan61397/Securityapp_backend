@@ -86,7 +86,7 @@ router.get('/:buildingId',
   validateParams.slice(0, 1), // Only buildingId validation
   validateQuery,
   buildingAccess,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   VisitController.getVisits
 );
 
@@ -106,6 +106,15 @@ router.get('/:buildingId/search',
   buildingAccess,
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
   VisitController.searchVisits
+);
+
+// Get visits for resident (only visits where they are the host)
+router.get('/:buildingId/resident',
+  validateParams.slice(0, 1), // Only buildingId validation
+  validateQuery,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
+  VisitController.getResidentVisits
 );
 
 // Get visit by ID

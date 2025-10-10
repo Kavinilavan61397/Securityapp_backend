@@ -183,6 +183,8 @@ class VisitController {
   static async getVisits(req, res) {
     try {
       const { buildingId } = req.params;
+      const userId = req.user.id || req.user.userId;
+      const userRole = req.user.role;
       const {
         page = 1,
         limit = 10,
@@ -196,14 +198,28 @@ class VisitController {
       } = req.query;
 
       const skip = (page - 1) * limit;
-      const query = { buildingId };
+      // Convert buildingId string to ObjectId for proper querying
+      const query = { buildingId: new mongoose.Types.ObjectId(buildingId) };
+
+      // For residents: only show visits where they are the host
+      // For other roles: show all visits in the building
+      if (userRole === 'RESIDENT') {
+        query.hostId = new mongoose.Types.ObjectId(userId);
+      }
 
       // Apply filters
       if (status) query.status = status;
       if (visitType) query.visitType = visitType;
       if (approvalStatus) query.approvalStatus = approvalStatus;
-      if (hostId) query.hostId = hostId;
-      if (visitorId) query.visitorId = visitorId;
+      if (hostId) query.hostId = new mongoose.Types.ObjectId(hostId);
+      if (visitorId) {
+        // Check if visitorId is a valid ObjectId string
+        if (mongoose.Types.ObjectId.isValid(visitorId)) {
+          query.visitorId = new mongoose.Types.ObjectId(visitorId);
+        } else {
+          query.visitorId = visitorId;
+        }
+      }
 
       // Date range filter
       if (startDate || endDate) {
@@ -246,6 +262,101 @@ class VisitController {
 
     } catch (error) {
       console.error('Get visits error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Get visits - residents see only their hosted visits, other roles see all building visits
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async getResidentVisits(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const userId = req.user.id || req.user.userId;
+      const userRole = req.user.role;
+      const {
+        page = 1,
+        limit = 10,
+        status,
+        visitType,
+        approvalStatus,
+        startDate,
+        endDate,
+        visitorId
+      } = req.query;
+
+      const skip = (page - 1) * limit;
+      
+      // Base query: different behavior based on user role
+      // Convert buildingId string to ObjectId for proper querying
+      const query = { buildingId: new mongoose.Types.ObjectId(buildingId) };
+      
+      // For residents: only show visits where they are the host
+      // For other roles: show all visits in the building
+      if (userRole === 'RESIDENT') {
+        query.hostId = new mongoose.Types.ObjectId(userId);
+      }
+
+      // Apply filters
+      if (status) query.status = status;
+      if (visitType) query.visitType = visitType;
+      if (approvalStatus) query.approvalStatus = approvalStatus;
+      if (visitorId) {
+        // Check if visitorId is a valid ObjectId string
+        if (mongoose.Types.ObjectId.isValid(visitorId)) {
+          query.visitorId = new mongoose.Types.ObjectId(visitorId);
+        } else {
+          query.visitorId = visitorId;
+        }
+      }
+
+      // Date range filter
+      if (startDate || endDate) {
+        query.createdAt = {};
+        if (startDate) query.createdAt.$gte = new Date(startDate);
+        if (endDate) query.createdAt.$lte = new Date(endDate);
+      }
+
+      const visits = await Visit.find(query)
+        .populate([
+          { 
+            path: 'visitorId', 
+            select: 'name phoneNumber email visitorCategory serviceType employeeCode flatNumbers vehicleNumber vehicleType'
+          },
+          { path: 'hostId', select: 'name phoneNumber email' },
+          { path: 'approvedBy', select: 'name' },
+          { path: 'verifiedBySecurity', select: 'name' }
+        ])
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+      const totalVisits = await Visit.countDocuments(query);
+      const totalPages = Math.ceil(totalVisits / limit);
+
+      res.status(200).json({
+        success: true,
+        message: 'Visits retrieved successfully',
+        data: {
+          visits,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            totalVisits,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get resident visits error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',

@@ -260,8 +260,9 @@ router.get(
 router.post(
   '/:buildingId',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateParams[0], // buildingId validation
+  buildingAccess, // Add building access control
   validateCreateEmployee,
   handleValidationErrors,
   EmployeeController.createEmployee

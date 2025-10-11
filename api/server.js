@@ -148,7 +148,7 @@ app.use('/api/security', securityDashboardRoutes);
 app.use('/api/calls', callRoutes);
 // ADMIN FLOW ROUTES - New Implementation
 app.use('/api/employees', employeeRoutes);
-app.use('/api/resident-approvals', residentApprovalRoutes);
+app.use('/api/resident-approval', residentApprovalRoutes);
 app.use('/api/admin-dashboard', adminDashboardRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/user-profile', userProfileRoutes);
@@ -183,7 +183,7 @@ app.get('/api', (req, res) => {
         faqs: `${BASE_URL}/api/faqs`,
         // NEW ADMIN FLOW ENDPOINTS
         employees: `${BASE_URL}/api/employees`,
-        residentApprovals: `${BASE_URL}/api/resident-approvals`,
+        residentApprovals: `${BASE_URL}/api/resident-approval`,
         adminDashboard: `${BASE_URL}/api/admin-dashboard`,
         messages: `${BASE_URL}/api/messages`,
         visitorCategories: `${BASE_URL}/api/visitor-categories`,
@@ -259,7 +259,7 @@ app.use('*', (req, res) => {
         helpSupport: '/api/help-support',
         faqs: '/api/faqs',
         employees: '/api/employees',
-        residentApprovals: '/api/resident-approvals',
+        residentApprovals: '/api/resident-approval',
         adminDashboard: '/api/admin-dashboard',
         messages: '/api/messages',
         userProfile: '/api/user-profile',

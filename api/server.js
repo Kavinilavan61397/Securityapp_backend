@@ -249,7 +249,26 @@ app.use('*', (req, res) => {
         visits: '/api/visits',
         notifications: '/api/notifications',
         photos: '/api/photos',
-        analytics: '/api/analytics'
+        analytics: '/api/analytics',
+        familyMembers: '/api/family-members',
+        vehicles: '/api/vehicles',
+        flats: '/api/flats',
+        househelp: '/api/househelp',
+        preApprovals: '/api/pre-approvals',
+        complaints: '/api/complaints',
+        helpSupport: '/api/help-support',
+        faqs: '/api/faqs',
+        employees: '/api/employees',
+        residentApprovals: '/api/resident-approvals',
+        adminDashboard: '/api/admin-dashboard',
+        messages: '/api/messages',
+        userProfile: '/api/user-profile',
+        askSociety: '/api/ask-society',
+        notices: '/api/notices',
+        pass: '/api/pass',
+        visitorCategories: '/api/visitor-categories',
+        securityDashboard: '/api/security',
+        calls: '/api/calls'
       }
   });
 });

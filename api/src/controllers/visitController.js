@@ -627,6 +627,55 @@ class VisitController {
             // Don't fail the visit update if visitor update fails
           }
         }
+      } else if (role === 'RESIDENT') {
+        // Resident can approve/reject visits for their own guests
+        if (approvalStatus) {
+          if (!['APPROVED', 'REJECTED', 'CANCELLED'].includes(approvalStatus)) {
+            return res.status(400).json({
+              success: false,
+              message: 'Invalid approval status'
+            });
+          }
+
+          // Check if resident is the host of this visit
+          if (visit.hostId && visit.hostId._id.toString() !== userId.toString()) {
+            return res.status(403).json({
+              success: false,
+              message: 'Access denied. You can only approve visits for your own guests.'
+            });
+          }
+
+          visit.approvalStatus = approvalStatus;
+          visit.approvedBy = userId;
+          visit.approvedAt = new Date();
+
+          if (approvalStatus === 'REJECTED') {
+            visit.rejectionReason = rejectionReason;
+            visit.status = 'CANCELLED';
+          } else if (approvalStatus === 'APPROVED') {
+            // Auto check-in when approved by resident
+            visit.status = 'IN_PROGRESS';
+            visit.checkInTime = new Date();
+            visit.verifiedBySecurity = userId;
+            visit.verifiedAt = new Date();
+            visit.checkIn = true;
+          } else if (approvalStatus === 'CANCELLED') {
+            visit.status = 'CANCELLED';
+          }
+
+          // Update visitor's approval status
+          try {
+            await Visitor.findByIdAndUpdate(
+              visit.visitorId,
+              { approvalStatus: approvalStatus === 'APPROVED' ? 'APPROVED' : 'DENIED' },
+              { new: true }
+            );
+            console.log('✅ Visitor approval status updated to:', approvalStatus === 'APPROVED' ? 'APPROVED' : 'DENIED');
+          } catch (visitorError) {
+            console.error('❌ Error updating visitor approval status:', visitorError);
+            // Don't fail the visit update if visitor update fails
+          }
+        }
       }
 
       await visit.save();

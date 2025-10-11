@@ -68,6 +68,29 @@ class VisitController {
             message: 'Host not found or does not belong to this building'
           });
         }
+      } else if (hostFlatNumber) {
+        // Auto-resolve host from flat number if hostId not provided
+        console.log(`🔍 Searching for resident with flatNumber: ${hostFlatNumber} in buildingId: ${buildingId}`);
+        
+        host = await User.findOne({
+          buildingId: new mongoose.Types.ObjectId(buildingId),
+          flatNumber: hostFlatNumber,
+          role: 'RESIDENT',
+          isActive: true
+        });
+        
+        console.log(`🔍 Found host:`, host ? `${host.name} (${host._id})` : 'null');
+        
+        if (!host) {
+          return res.status(404).json({
+            success: false,
+            message: `No resident found for flat number ${hostFlatNumber} in this building`
+          });
+        }
+        
+        // Set hostId from found host
+        hostId = host._id.toString();
+        console.log(`✅ Auto-resolved hostId ${hostId} for flat ${hostFlatNumber}`);
       }
 
       // Generate unique visit ID

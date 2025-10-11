@@ -527,7 +527,7 @@ class EmployeeController {
   static async getResidents(req, res) {
     try {
       const { buildingId } = req.params;
-      const { page = 1, limit = 10 } = req.query;
+      const { page = 1, limit = 10, verificationLevel } = req.query;
 
       // Verify building exists
       const building = await Building.findById(buildingId);
@@ -544,6 +544,18 @@ class EmployeeController {
         role: 'RESIDENT',
         isActive: true 
       };
+
+      // Add verification level filter if specified
+      if (verificationLevel) {
+        // Handle multiple verification levels (comma-separated)
+        if (verificationLevel.includes(',')) {
+          const levels = verificationLevel.split(',').map(level => level.trim());
+          query['verification.verificationLevel'] = { $in: levels };
+        } else {
+          // Single verification level
+          query['verification.verificationLevel'] = verificationLevel;
+        }
+      }
 
       // Calculate pagination
       const skip = (parseInt(page) - 1) * parseInt(limit);

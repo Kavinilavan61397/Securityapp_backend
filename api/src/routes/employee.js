@@ -223,6 +223,23 @@ const validateQuery = [
     .isIn(['SECURITY_GUARD', 'RESIDENT_HELPER', 'TECHNICIAN', 'OTHER'])
     .withMessage('Invalid employee type'),
   
+  query('verificationLevel')
+    .optional()
+    .custom((value) => {
+      if (!value) return true;
+      const validLevels = ['PENDING', 'VERIFIED'];
+      const levels = value.includes(',') 
+        ? value.split(',').map(level => level.trim())
+        : [value.trim()];
+      
+      const invalidLevels = levels.filter(level => !validLevels.includes(level));
+      if (invalidLevels.length > 0) {
+        throw new Error(`Invalid verification level(s): ${invalidLevels.join(', ')}. Valid levels are: ${validLevels.join(', ')}`);
+      }
+      return true;
+    })
+    .withMessage('Invalid verification level'),
+  
   query('isActive')
     .optional()
     .custom((value) => {
@@ -268,7 +285,9 @@ router.get(
   authenticateToken,
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
   validateBuildingIdOnly,
+  validateQuery,
   buildingAccess,
+  handleValidationErrors,
   EmployeeController.getResidents
 );
 

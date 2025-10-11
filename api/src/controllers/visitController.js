@@ -28,7 +28,6 @@ class VisitController {
       const { buildingId } = req.params;
       const {
         visitorId,
-        hostId,
         hostFlatNumber,
         blockNumber,
         purpose,
@@ -39,6 +38,8 @@ class VisitController {
         vehicleNumber,
         vehicleType = 'OTHER'
       } = req.body;
+      
+      let { hostId } = req.body;
 
       // Validate building exists
       const building = await Building.findById(buildingId);

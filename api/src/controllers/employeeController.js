@@ -520,6 +520,100 @@ class EmployeeController {
       });
     }
   }
+  /**
+   * Get all residents in a building
+   * Shows users with role RESIDENT
+   */
+  static async getResidents(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const { page = 1, limit = 10 } = req.query;
+
+      // Verify building exists
+      const building = await Building.findById(buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Build query for residents
+      const query = { 
+        buildingId: new mongoose.Types.ObjectId(buildingId), 
+        role: 'RESIDENT',
+        isActive: true 
+      };
+
+      // Calculate pagination
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      // Get residents with pagination
+      const residents = await User.find(query)
+        .select('name email phoneNumber flatNumber tenantType isVerified verification createdAt updatedAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+      // Get total count
+      const totalResidents = await User.countDocuments(query);
+
+      // Get verification statistics
+      const stats = await User.aggregate([
+        { $match: query },
+        { $group: { _id: '$verification.verificationLevel', count: { $sum: 1 } } }
+      ]);
+
+      const statusCounts = {};
+      stats.forEach(stat => {
+        statusCounts[stat._id || 'PENDING'] = stat.count;
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Residents retrieved successfully',
+        data: {
+          residents: residents.map(resident => ({
+            id: resident._id,
+            name: resident.name,
+            email: resident.email,
+            phoneNumber: resident.phoneNumber,
+            flatNumber: resident.flatNumber,
+            tenantType: resident.tenantType,
+            isVerified: resident.isVerified,
+            verificationLevel: resident.verification?.verificationLevel || 'PENDING',
+            createdAt: resident.createdAt,
+            updatedAt: resident.updatedAt
+          })),
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(totalResidents / parseInt(limit)),
+            totalResidents,
+            hasNext: skip + residents.length < totalResidents,
+            hasPrev: parseInt(page) > 1
+          },
+          statistics: {
+            PENDING: statusCounts.PENDING || 0,
+            VERIFIED: statusCounts.VERIFIED || 0,
+            TOTAL: totalResidents
+          },
+          building: {
+            id: building._id,
+            name: building.name
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get residents error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve residents',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
 }
 
 module.exports = EmployeeController;

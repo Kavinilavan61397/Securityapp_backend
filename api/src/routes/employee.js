@@ -211,6 +211,12 @@ const validateParams = [
     .withMessage('Invalid employee ID')
 ];
 
+const validateBuildingIdOnly = [
+  param('buildingId')
+    .isMongoId()
+    .withMessage('Invalid building ID')
+];
+
 const validateQuery = [
   query('employeeType')
     .optional()
@@ -254,6 +260,16 @@ router.get(
   authenticateToken,
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN']),
   EmployeeController.generateEmployeeCode
+);
+
+// Get residents in a building (MUST be before /:buildingId routes)
+router.get(
+  '/residents/:buildingId',
+  authenticateToken,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  validateBuildingIdOnly,
+  buildingAccess,
+  EmployeeController.getResidents
 );
 
 // Create employee

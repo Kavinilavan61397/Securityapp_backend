@@ -179,7 +179,21 @@ class ResidentApprovalController {
         success: true,
         message: 'Resident approvals retrieved successfully',
         data: {
-          residentApprovals: residentApprovals.map(approval => approval.getSummary()),
+          residentApprovals: residentApprovals.map(approval => {
+            try {
+              return approval.getSummary();
+            } catch (error) {
+              console.error('Error getting approval summary:', error);
+              return {
+                id: approval._id,
+                name: approval.name,
+                email: approval.email,
+                phoneNumber: approval.phoneNumber,
+                status: approval.status,
+                submittedAt: approval.submittedAt
+              };
+            }
+          }),
           pagination: {
             currentPage: parseInt(page),
             totalPages: Math.ceil(totalApprovals / parseInt(limit)),

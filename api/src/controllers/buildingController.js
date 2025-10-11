@@ -176,7 +176,7 @@ class BuildingController {
       }
 
       // Check access permissions
-      if (req.user.role === 'BUILDING_ADMIN' && building.adminId._id.toString() !== req.user._id.toString()) {
+      if (req.user.role === 'BUILDING_ADMIN' && building.adminId && building.adminId._id.toString() !== req.user._id.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Access denied. You can only view your assigned building.'

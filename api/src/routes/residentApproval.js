@@ -188,11 +188,11 @@ router.get(
   ResidentApprovalController.getApprovalStats
 );
 
-// Get resident's own approval status (Resident only)
+// Get resident's own approval status (All roles can check their own status)
 router.get(
   '/:buildingId/my-status',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   validateParams[0], // buildingId validation
   ResidentApprovalController.getMyApprovalStatus
 );

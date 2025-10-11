@@ -1,7 +1,9 @@
 const ResidentApproval = require('../models/ResidentApproval');
 const Building = require('../models/Building');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 
 /**
  * Resident Approval Controller
@@ -276,6 +278,81 @@ class ResidentApprovalController {
   }
 
   /**
+   * Get resident's own approval status
+   * RESIDENT can check their own approval status
+   */
+  static async getMyApprovalStatus(req, res) {
+    try {
+      const { buildingId } = req.params;
+      const { userId } = req.user;
+
+      // Verify building exists
+      const building = await Building.findById(buildingId);
+      if (!building) {
+        return res.status(404).json({
+          success: false,
+          message: 'Building not found'
+        });
+      }
+
+      // Find resident's approval request
+      const residentApproval = await ResidentApproval.findOne({
+        buildingId,
+        email: req.user.email, // Match by email since resident might not have userId yet
+        isActive: true
+      }).sort({ createdAt: -1 }); // Get the latest approval request
+
+      if (!residentApproval) {
+        return res.status(404).json({
+          success: false,
+          message: 'No approval request found for this resident',
+          data: {
+            status: 'NOT_FOUND',
+            message: 'You have not submitted any approval request yet'
+          }
+        });
+      }
+
+      // Populate building details
+      await residentApproval.populate('buildingId', 'name address');
+
+      res.status(200).json({
+        success: true,
+        message: 'Approval status retrieved successfully',
+        data: {
+          approvalId: residentApproval._id,
+          status: residentApproval.status,
+          submittedAt: residentApproval.submittedAt,
+          approvedAt: residentApproval.approvedAt,
+          approvedBy: residentApproval.approvedBy,
+          rejectionReason: residentApproval.rejectionReason,
+          adminNotes: residentApproval.adminNotes,
+          building: {
+            id: building._id,
+            name: building.name,
+            address: building.address
+          },
+          resident: {
+            name: residentApproval.name,
+            email: residentApproval.email,
+            phoneNumber: residentApproval.phoneNumber,
+            flatNumber: residentApproval.flatNumber,
+            tenantType: residentApproval.tenantType
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Get my approval status error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve approval status',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
    * Approve resident
    * Only BUILDING_ADMIN and SUPER_ADMIN can approve
    */
@@ -338,6 +415,43 @@ class ResidentApprovalController {
       ]);
 
       console.log('✅ Resident approved successfully:', residentApproval._id);
+
+      // Create notification for the resident
+      try {
+        // Find the resident user by email to send notification
+        const residentUser = await User.findOne({
+          email: residentApproval.email,
+          buildingId: buildingId
+        });
+
+        if (residentUser) {
+          await Notification.create({
+            notificationId: `NOTIF_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+            recipientId: residentUser._id,
+            recipientRole: 'RESIDENT',
+            buildingId,
+            title: 'Resident Approval Approved',
+            message: `Congratulations! Your resident approval request has been approved by ${req.user.name}. You can now access all resident features.`,
+            type: 'RESIDENT_APPROVAL_APPROVED',
+            category: 'SUCCESS',
+            priority: 'HIGH',
+            relatedUserId: userId,
+            actionRequired: false,
+            deliveryChannels: { inApp: true, email: true, sms: false },
+            metadata: {
+              approvedBy: req.user.name,
+              approvedAt: new Date(),
+              adminNotes: adminNotes || null
+            }
+          });
+          console.log('✅ Notification sent to resident:', residentUser._id);
+        } else {
+          console.log('⚠️ Resident user not found for notification:', residentApproval.email);
+        }
+      } catch (notificationError) {
+        console.error('❌ Failed to create resident approval notification:', notificationError);
+        // Don't fail the approval if notification fails
+      }
 
       res.status(200).json({
         success: true,
@@ -428,6 +542,45 @@ class ResidentApprovalController {
       ]);
 
       console.log('✅ Resident denied successfully:', residentApproval._id);
+
+      // Create notification for the resident
+      try {
+        // Find the resident user by email to send notification
+        const residentUser = await User.findOne({
+          email: residentApproval.email,
+          buildingId: buildingId
+        });
+
+        if (residentUser) {
+          await Notification.create({
+            notificationId: `NOTIF_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+            recipientId: residentUser._id,
+            recipientRole: 'RESIDENT',
+            buildingId,
+            title: 'Resident Approval Denied',
+            message: `Your resident approval request has been denied by ${req.user.name}. Reason: ${rejectionReason || 'No reason provided'}. Please contact the building admin for more information.`,
+            type: 'RESIDENT_APPROVAL_DENIED',
+            category: 'WARNING',
+            priority: 'HIGH',
+            relatedUserId: userId,
+            actionRequired: true,
+            actionType: 'CONTACT_ADMIN',
+            deliveryChannels: { inApp: true, email: true, sms: false },
+            metadata: {
+              deniedBy: req.user.name,
+              deniedAt: new Date(),
+              rejectionReason: rejectionReason || null,
+              adminNotes: adminNotes || null
+            }
+          });
+          console.log('✅ Denial notification sent to resident:', residentUser._id);
+        } else {
+          console.log('⚠️ Resident user not found for denial notification:', residentApproval.email);
+        }
+      } catch (notificationError) {
+        console.error('❌ Failed to create resident denial notification:', notificationError);
+        // Don't fail the denial if notification fails
+      }
 
       res.status(200).json({
         success: true,

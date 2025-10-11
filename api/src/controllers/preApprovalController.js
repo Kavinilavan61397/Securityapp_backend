@@ -527,6 +527,14 @@ const approvePreApproval = async (req, res) => {
         visit.approvedAt = new Date();
         await visit.save();
         console.log('✅ Visit status updated to APPROVED:', visit._id);
+        
+        // Update visitor approval status to APPROVED
+        await Visitor.findByIdAndUpdate(
+          visit.visitorId,
+          { approvalStatus: 'APPROVED' },
+          { new: true }
+        );
+        console.log('✅ Visitor approval status updated to APPROVED:', visit.visitorId);
       }
     } catch (visitError) {
       console.error('❌ Error updating visit status:', visitError);
@@ -612,6 +620,14 @@ const rejectPreApproval = async (req, res) => {
         visit.rejectionReason = rejectionReason || 'No reason provided';
         await visit.save();
         console.log('✅ Visit status updated to REJECTED:', visit._id);
+        
+        // Update visitor approval status to DENIED
+        await Visitor.findByIdAndUpdate(
+          visit.visitorId,
+          { approvalStatus: 'DENIED' },
+          { new: true }
+        );
+        console.log('✅ Visitor approval status updated to DENIED:', visit.visitorId);
       }
     } catch (visitError) {
       console.error('❌ Error updating visit status:', visitError);

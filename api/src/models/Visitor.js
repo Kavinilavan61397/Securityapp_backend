@@ -118,6 +118,13 @@ const visitorSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+
+  // Approval Status - reflects the latest visit approval status
+  approvalStatus: {
+    type: String,
+    enum: ['PENDING', 'APPROVED', 'DENIED'],
+    default: 'PENDING'
+  },
   
   blacklistReason: {
     type: String,

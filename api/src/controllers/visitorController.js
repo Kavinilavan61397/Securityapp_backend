@@ -339,7 +339,7 @@ class VisitorController {
           { idNumber: searchRegex }
         ]
       })
-        .select('name phoneNumber email company photo isBlacklisted totalVisits lastVisitAt')
+        .select('name phoneNumber email company photo isBlacklisted totalVisits lastVisitAt approvalStatus')
         .populate('photo', 'url thumbnail')
         .limit(parseInt(limit))
         .sort({ createdAt: -1, totalVisits: -1, lastVisitAt: -1 });

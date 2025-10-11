@@ -566,6 +566,19 @@ class VisitController {
           } else if (approvalStatus === 'CANCELLED') {
             visit.status = 'CANCELLED';
           }
+
+          // Update visitor's approval status
+          try {
+            await Visitor.findByIdAndUpdate(
+              visit.visitorId,
+              { approvalStatus: approvalStatus === 'APPROVED' ? 'APPROVED' : 'DENIED' },
+              { new: true }
+            );
+            console.log('✅ Visitor approval status updated to:', approvalStatus === 'APPROVED' ? 'APPROVED' : 'DENIED');
+          } catch (visitorError) {
+            console.error('❌ Error updating visitor approval status:', visitorError);
+            // Don't fail the visit update if visitor update fails
+          }
         }
         
         if (securityNotes) {
@@ -599,6 +612,19 @@ class VisitController {
             visit.checkIn = true;
           } else if (approvalStatus === 'CANCELLED') {
             visit.status = 'CANCELLED';
+          }
+
+          // Update visitor's approval status
+          try {
+            await Visitor.findByIdAndUpdate(
+              visit.visitorId,
+              { approvalStatus: approvalStatus === 'APPROVED' ? 'APPROVED' : 'DENIED' },
+              { new: true }
+            );
+            console.log('✅ Visitor approval status updated to:', approvalStatus === 'APPROVED' ? 'APPROVED' : 'DENIED');
+          } catch (visitorError) {
+            console.error('❌ Error updating visitor approval status:', visitorError);
+            // Don't fail the visit update if visitor update fails
           }
         }
       }

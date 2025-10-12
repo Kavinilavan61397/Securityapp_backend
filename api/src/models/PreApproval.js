@@ -92,6 +92,16 @@ const preApprovalSchema = new mongoose.Schema({
     type: String,
     required: false
   },
+  qrCodeHistory: {
+    type: [{
+      qrCodeData: Object,
+      qrCodeString: String,
+      qrCodeImage: String,
+      generatedAt: Date,
+      status: String
+    }],
+    default: []
+  },
 
   // Metadata
   isActive: {

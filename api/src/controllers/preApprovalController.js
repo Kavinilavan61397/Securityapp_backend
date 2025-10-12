@@ -74,6 +74,87 @@ const createVisitFromPreApproval = async (preApproval, visitor) => {
   }
 };
 
+// Helper function to regenerate QR code for pre-approval
+const regeneratePreApprovalQR = async (preApprovalId) => {
+  try {
+    console.log('🔄 Regenerating QR code for pre-approval:', preApprovalId);
+    
+    const preApproval = await PreApproval.findById(preApprovalId);
+    if (!preApproval) {
+      throw new Error('Pre-approval not found');
+    }
+
+    const visit = await Visit.findOne({ preApprovalId: preApproval._id });
+    if (!visit) {
+      throw new Error('Visit not found for pre-approval');
+    }
+
+    // Save old QR to history (if exists)
+    if (preApproval.qrCodeData && preApproval.qrCodeString && preApproval.qrCodeImage) {
+      preApproval.qrCodeHistory.push({
+        qrCodeData: preApproval.qrCodeData,
+        qrCodeString: preApproval.qrCodeString,
+        qrCodeImage: preApproval.qrCodeImage,
+        generatedAt: new Date(),
+        status: preApproval.status
+      });
+      console.log('✅ Old QR saved to history');
+    }
+
+    // Generate new QR with current status
+    const qrCodeData = {
+      type: 'PRE_APPROVAL',
+      preApprovalId: preApproval._id.toString(),
+      visitId: visit.visitId,
+      visitorName: preApproval.visitorName,
+      visitorPhone: preApproval.visitorPhone,
+      visitorEmail: preApproval.visitorEmail,
+      purpose: preApproval.purpose,
+      expectedDate: preApproval.expectedDate,
+      expectedTime: preApproval.expectedTime,
+      flatNumber: preApproval.flatNumber,
+      residentId: preApproval.residentId.toString(),
+      buildingId: preApproval.buildingId.toString(),
+      approvalStatus: preApproval.status, // PENDING, APPROVED, or REJECTED
+      timestamp: Date.now(),
+      lastUpdated: Date.now(),
+      expiresAt: Date.now() + (48 * 60 * 60 * 1000) // 48 hours expiry
+    };
+
+    const qrCodeString = JSON.stringify(qrCodeData);
+
+    // Generate QR Code image as base64
+    const qrCodeImage = await QRCode.toDataURL(qrCodeString, {
+      errorCorrectionLevel: 'M',
+      type: 'image/png',
+      quality: 0.92,
+      margin: 1,
+      width: 300,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+
+    // Update current QR code
+    preApproval.qrCodeData = qrCodeData;
+    preApproval.qrCodeString = qrCodeString;
+    preApproval.qrCodeImage = qrCodeImage;
+    await preApproval.save();
+
+    console.log('✅ New QR code generated and saved with status:', preApproval.status);
+
+    return {
+      qrCodeData,
+      qrCodeString,
+      qrCodeImage
+    };
+  } catch (error) {
+    console.error('❌ Error regenerating QR code:', error);
+    throw error;
+  }
+};
+
 // Create a new pre-approval
 const createPreApproval = async (req, res) => {
   try {
@@ -308,6 +389,11 @@ const getPreApprovals = async (req, res) => {
               city: pa.residentId?.city,
               tenantType: pa.residentId?.tenantType
             }
+          },
+          qrCode: {
+            data: pa.qrCodeData,
+            string: pa.qrCodeString,
+            image: pa.qrCodeImage
           }
         })),
         pagination: {
@@ -376,7 +462,12 @@ const getPreApproval = async (req, res) => {
         status: preApproval.status,
         fullIdentification: preApproval.fullIdentification,
         createdAt: preApproval.createdAt,
-        updatedAt: preApproval.updatedAt
+        updatedAt: preApproval.updatedAt,
+        qrCode: {
+          data: preApproval.qrCodeData,
+          string: preApproval.qrCodeString,
+          image: preApproval.qrCodeImage
+        }
       }
     });
 
@@ -588,6 +679,16 @@ const approvePreApproval = async (req, res) => {
       // Don't fail the pre-approval approval if visit update fails
     }
 
+    // Regenerate QR code with APPROVED status
+    let updatedQRCode = null;
+    try {
+      updatedQRCode = await regeneratePreApprovalQR(preApproval._id);
+      console.log('✅ QR code regenerated with APPROVED status');
+    } catch (qrError) {
+      console.error('❌ Error regenerating QR code:', qrError);
+      // Don't fail the approval if QR regeneration fails
+    }
+
     res.json({
       success: true,
       message: 'Pre-approval approved successfully',
@@ -601,6 +702,11 @@ const approvePreApproval = async (req, res) => {
         approvedBy: {
           role: userRole,
           userId: userId
+        },
+        qrCode: updatedQRCode || {
+          data: preApproval.qrCodeData,
+          string: preApproval.qrCodeString,
+          image: preApproval.qrCodeImage
         }
       }
     });
@@ -681,6 +787,16 @@ const rejectPreApproval = async (req, res) => {
       // Don't fail the pre-approval rejection if visit update fails
     }
 
+    // Regenerate QR code with REJECTED status
+    let updatedQRCode = null;
+    try {
+      updatedQRCode = await regeneratePreApprovalQR(preApproval._id);
+      console.log('✅ QR code regenerated with REJECTED status');
+    } catch (qrError) {
+      console.error('❌ Error regenerating QR code:', qrError);
+      // Don't fail the rejection if QR regeneration fails
+    }
+
     res.json({
       success: true,
       message: 'Pre-approval rejected successfully',
@@ -695,6 +811,11 @@ const rejectPreApproval = async (req, res) => {
         rejectedBy: {
           role: userRole,
           userId: userId
+        },
+        qrCode: updatedQRCode || {
+          data: preApproval.qrCodeData,
+          string: preApproval.qrCodeString,
+          image: preApproval.qrCodeImage
         }
       }
     });

@@ -1439,6 +1439,107 @@ class VisitController {
       });
     }
   }
+
+  /**
+   * Validate QR code and get visit status (for security scanning)
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async validateQRCode(req, res) {
+    try {
+      const { buildingId, visitId } = req.params;
+
+      // Find visit by custom visitId
+      const visit = await Visit.findOne({ 
+        visitId: visitId,
+        buildingId: new mongoose.Types.ObjectId(buildingId)
+      })
+        .populate('visitorId', 'name phoneNumber email photo approvalStatus')
+        .populate('hostId', 'name flatNumber phoneNumber')
+        .populate('preApprovalId');
+
+      if (!visit) {
+        return res.status(404).json({
+          success: false,
+          message: 'Visit not found'
+        });
+      }
+
+      // Check if QR code is expired
+      const isQRExpired = visit.qrCodeExpiresAt && new Date() > visit.qrCodeExpiresAt;
+      
+      // Determine if visit can be checked in
+      const canCheckIn = 
+        visit.approvalStatus === 'APPROVED' && 
+        visit.status === 'SCHEDULED' &&
+        !isQRExpired;
+
+      // Validation messages
+      const warnings = [];
+      if (isQRExpired) warnings.push('QR code has expired');
+      if (visit.status === 'IN_PROGRESS') warnings.push('Visit is already in progress');
+      if (visit.status === 'COMPLETED') warnings.push('Visit has already been completed');
+      if (visit.status === 'CANCELLED') warnings.push('Visit has been cancelled');
+      if (visit.approvalStatus === 'PENDING') warnings.push('Visit is pending approval');
+      if (visit.approvalStatus === 'REJECTED') warnings.push('Visit has been rejected');
+
+      res.status(200).json({
+        success: true,
+        message: 'QR code validated successfully',
+        data: {
+          visit: {
+            visitId: visit.visitId,
+            status: visit.status,
+            approvalStatus: visit.approvalStatus,
+            visitType: visit.visitType,
+            purpose: visit.purpose,
+            scheduledDate: visit.scheduledDate,
+            scheduledTime: visit.scheduledTime,
+            checkInTime: visit.checkInTime,
+            checkOutTime: visit.checkOutTime,
+            qrCodeExpiresAt: visit.qrCodeExpiresAt,
+            canCheckIn: canCheckIn,
+            alreadyCheckedIn: visit.status === 'IN_PROGRESS' || visit.status === 'COMPLETED'
+          },
+          visitor: {
+            id: visit.visitorId._id,
+            name: visit.visitorId.name,
+            phoneNumber: visit.visitorId.phoneNumber,
+            email: visit.visitorId.email,
+            photo: visit.visitorId.photo,
+            approvalStatus: visit.visitorId.approvalStatus
+          },
+          host: {
+            id: visit.hostId?._id,
+            name: visit.hostId?.name,
+            flatNumber: visit.hostId?.flatNumber,
+            phoneNumber: visit.hostId?.phoneNumber
+          },
+          preApproval: visit.preApprovalId ? {
+            id: visit.preApprovalId._id,
+            status: visit.preApprovalId.status,
+            approvedAt: visit.preApprovalId.approvedAt
+          } : null,
+          validationResult: {
+            isValid: canCheckIn,
+            isExpired: isQRExpired,
+            message: canCheckIn 
+              ? 'Visit is approved and ready for check-in' 
+              : warnings.join('. '),
+            warnings: warnings
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Validate QR code error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
 }
 
 module.exports = VisitController;

@@ -79,6 +79,20 @@ const preApprovalSchema = new mongoose.Schema({
     maxlength: [200, 'Rejection reason cannot exceed 200 characters']
   },
 
+  // QR Code fields
+  qrCodeData: {
+    type: Object,
+    required: false
+  },
+  qrCodeString: {
+    type: String,
+    required: false
+  },
+  qrCodeImage: {
+    type: String,
+    required: false
+  },
+
   // Metadata
   isActive: {
     type: Boolean,

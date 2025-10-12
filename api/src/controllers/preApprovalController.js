@@ -3,6 +3,7 @@ const Building = require('../models/Building');
 const Visitor = require('../models/Visitor');
 const Visit = require('../models/Visit');
 const User = require('../models/User');
+const QRCode = require('qrcode');
 
 // Helper function to create visitor from pre-approval data
 const createVisitorFromPreApproval = async (preApproval) => {
@@ -116,6 +117,47 @@ const createPreApproval = async (req, res) => {
       // Create visit from pre-approval data
       const visit = await createVisitFromPreApproval(preApproval, visitor);
       
+      // Generate QR Code with all pre-approval data
+      console.log('🔄 Generating QR code for pre-approval...');
+      const qrCodeData = {
+        type: 'PRE_APPROVAL',
+        preApprovalId: preApproval._id.toString(),
+        visitId: visit.visitId,
+        visitorName: preApproval.visitorName,
+        visitorPhone: preApproval.visitorPhone,
+        visitorEmail: preApproval.visitorEmail,
+        purpose: preApproval.purpose,
+        expectedDate: preApproval.expectedDate,
+        expectedTime: preApproval.expectedTime,
+        flatNumber: preApproval.flatNumber,
+        residentId: preApproval.residentId.toString(),
+        buildingId: preApproval.buildingId.toString(),
+        timestamp: Date.now(),
+        expiresAt: Date.now() + (48 * 60 * 60 * 1000) // 48 hours expiry
+      };
+      
+      const qrCodeString = JSON.stringify(qrCodeData);
+      
+      // Generate QR Code image as base64
+      const qrCodeImage = await QRCode.toDataURL(qrCodeString, {
+        errorCorrectionLevel: 'M',
+        type: 'image/png',
+        quality: 0.92,
+        margin: 1,
+        width: 300,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      // Save QR code to pre-approval
+      preApproval.qrCodeData = qrCodeData;
+      preApproval.qrCodeString = qrCodeString;
+      preApproval.qrCodeImage = qrCodeImage;
+      await preApproval.save();
+      
+      console.log('✅ QR code generated and saved to pre-approval');
       console.log('✅ Pre-approval flow completed successfully');
       
       res.status(201).json({
@@ -152,6 +194,11 @@ const createPreApproval = async (req, res) => {
           building: {
             id: buildingId,
             name: building.name
+          },
+          qrCode: {
+            data: preApproval.qrCodeData,
+            string: preApproval.qrCodeString,
+            image: preApproval.qrCodeImage
           }
         }
       });

@@ -117,6 +117,14 @@ router.get('/:buildingId/resident',
   VisitController.getResidentVisits
 );
 
+// Validate QR code and get live visit status (for all roles)
+router.get('/:buildingId/:visitId/qr-validate',
+  validateParams,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
+  VisitController.validateQRCode
+);
+
 // Get visit by ID
 router.get('/:buildingId/:visitId',
   validateParams,

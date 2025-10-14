@@ -274,7 +274,10 @@ const createPreApproval = async (req, res) => {
           },
           building: {
             id: buildingId,
-            name: building.name
+            name: building.name,
+            address: building.address,
+            contactPhone: building.contactPhone,
+            contactEmail: building.contactEmail
           },
           qrCode: {
             data: preApproval.qrCodeData,
@@ -310,7 +313,10 @@ const createPreApproval = async (req, res) => {
           },
           building: {
             id: buildingId,
-            name: building.name
+            name: building.name,
+            address: building.address,
+            contactPhone: building.contactPhone,
+            contactEmail: building.contactEmail
           }
         }
       });
@@ -352,6 +358,7 @@ const getPreApprovals = async (req, res) => {
 
     const preApprovals = await PreApproval.find(query)
       .populate('residentId', 'name email phoneNumber flatNumber blockNumber societyName area city tenantType')
+      .populate('buildingId', 'name address contactPhone contactEmail')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -389,6 +396,13 @@ const getPreApprovals = async (req, res) => {
               city: pa.residentId?.city,
               tenantType: pa.residentId?.tenantType
             }
+          },
+          building: {
+            id: pa.buildingId?._id,
+            name: pa.buildingId?.name,
+            address: pa.buildingId?.address,
+            contactPhone: pa.buildingId?.contactPhone,
+            contactEmail: pa.buildingId?.contactEmail
           },
           qrCode: {
             data: pa.qrCodeData,
@@ -436,7 +450,8 @@ const getPreApproval = async (req, res) => {
       query.residentId = userId;
     }
 
-    const preApproval = await PreApproval.findOne(query);
+    const preApproval = await PreApproval.findOne(query)
+      .populate('buildingId', 'name address contactPhone contactEmail');
 
     if (!preApproval) {
       return res.status(404).json({
@@ -463,6 +478,13 @@ const getPreApproval = async (req, res) => {
         fullIdentification: preApproval.fullIdentification,
         createdAt: preApproval.createdAt,
         updatedAt: preApproval.updatedAt,
+        building: {
+          id: preApproval.buildingId?._id,
+          name: preApproval.buildingId?.name,
+          address: preApproval.buildingId?.address,
+          contactPhone: preApproval.buildingId?.contactPhone,
+          contactEmail: preApproval.buildingId?.contactEmail
+        },
         qrCode: {
           data: preApproval.qrCodeData,
           string: preApproval.qrCodeString,

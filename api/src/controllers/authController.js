@@ -191,23 +191,64 @@ class AuthController {
    */
   async login(req, res) {
     try {
-      const { email, password } = req.body;
+      const { loginIdentifier, password } = req.body;
 
       // Validate required fields
-      if (!email || !password) {
+      if (!loginIdentifier || !password) {
         return res.status(400).json({
           success: false,
-          message: 'Email and password are required'
+          message: 'Email/Phone number and password are required'
         });
       }
 
-      // Find user by email (include password field for comparison)
-      const user = await User.findOne({ email }).select('+password');
+      // Auto-detect if input is email or phone number
+      const isEmail = loginIdentifier.includes('@');
+      
+      // Build query based on input type
+      let query = {};
+      let searchField = '';
+      
+      if (isEmail) {
+        // Validate and normalize email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(loginIdentifier)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Please provide a valid email address'
+          });
+        }
+        query.email = loginIdentifier.toLowerCase().trim();
+        searchField = 'email';
+      } else {
+        // Validate and normalize phone number
+        const phoneRegex = /^[+]?[\d\s\-\(\)]+$/;
+        if (!phoneRegex.test(loginIdentifier)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Please provide a valid phone number'
+          });
+        }
+        
+        // Check minimum length (at least 10 digits)
+        const digitsOnly = loginIdentifier.replace(/[\s\-\(\)]/g, '');
+        if (digitsOnly.length < 10) {
+          return res.status(400).json({
+            success: false,
+            message: 'Phone number must be at least 10 digits long'
+          });
+        }
+        
+        query.phoneNumber = digitsOnly;
+        searchField = 'phone number';
+      }
+
+      // Find user by email or phone number (include password field for comparison)
+      const user = await User.findOne(query).select('+password');
 
       if (!user) {
         return res.status(401).json({
           success: false,
-          message: 'Invalid credentials'
+          message: `No user found with this ${searchField}`
         });
       }
 
@@ -253,6 +294,7 @@ class AuthController {
               username: user.username, // Optional display field
               name: user.name,
               email: user.email,
+              phoneNumber: user.phoneNumber,
               role: user.role,
               roleDisplay: user.roleDisplay,
               buildingId: user.buildingId,
@@ -283,6 +325,7 @@ class AuthController {
               username: user.username, // Optional display field
               name: user.name,
               email: user.email,
+              phoneNumber: user.phoneNumber,
               role: user.role,
               roleDisplay: user.roleDisplay,
               buildingId: user.buildingId,

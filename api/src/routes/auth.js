@@ -184,10 +184,35 @@ const registerValidation = [
 ];
 
 const loginValidation = [
-  body('email')
-    .isEmail()
-    .normalizeEmail()
-    .withMessage('Please provide a valid email address'),
+  body('loginIdentifier')
+    .notEmpty()
+    .withMessage('Email or phone number is required')
+    .custom((value) => {
+      // Check if it's an email format
+      const isEmail = value.includes('@');
+      
+      if (isEmail) {
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) {
+          throw new Error('Please provide a valid email address');
+        }
+      } else {
+        // Validate phone number format (numbers, +, -, spaces, parentheses)
+        const phoneRegex = /^[+]?[\d\s\-\(\)]+$/;
+        if (!phoneRegex.test(value)) {
+          throw new Error('Please provide a valid phone number');
+        }
+        
+        // Check minimum length (at least 10 digits)
+        const digitsOnly = value.replace(/[\s\-\(\)]/g, '');
+        if (digitsOnly.length < 10) {
+          throw new Error('Phone number must be at least 10 digits long');
+        }
+      }
+      
+      return true;
+    }),
   
   body('password')
     .isLength({ min: 6 })

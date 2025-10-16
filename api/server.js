@@ -40,6 +40,8 @@ const noticeRoutes = require('./src/routes/notice');
 const passRoutes = require('./src/routes/pass');
 // EMPLOYEE ENTRY TRACKING ROUTES - New Implementation
 const employeeEntryRoutes = require('./src/routes/employeeEntry');
+// SERVICE REQUEST MANAGEMENT ROUTES - New Implementation
+const serviceRequestRoutes = require('./src/routes/serviceRequest');
 
 // Initialize Express app
 const app = express();
@@ -159,6 +161,8 @@ app.use('/api/notices', noticeRoutes);
 app.use('/api/pass', passRoutes);
 // EMPLOYEE ENTRY TRACKING ROUTES - New Implementation
 app.use('/api/employee-entries', employeeEntryRoutes);
+// SERVICE REQUEST MANAGEMENT ROUTES - New Implementation
+app.use('/api/service-requests', serviceRequestRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {

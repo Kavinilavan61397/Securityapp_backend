@@ -17,11 +17,11 @@ const serviceRequestSchema = new mongoose.Schema({
     required: [true, 'Building ID is required']
   },
 
-  // Employee Information (who will handle the request)
+  // Employee Information (who will handle the request) - Optional, can be assigned later
   employeeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee',
-    required: [true, 'Employee ID is required']
+    required: false // Made optional - can be assigned later
   },
 
   // Requester Information (who created the request)

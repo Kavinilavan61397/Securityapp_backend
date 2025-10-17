@@ -85,14 +85,14 @@ const validateCreateServiceRequest = [
     .isLength({ max: 100 })
     .withMessage('Preferred time cannot exceed 100 characters'),
   
-  // Custom validation: At least one of employeeId, employeeCode, or employeeName required
-  body().custom((value) => {
-    const { employeeId, employeeCode, employeeName } = value;
-    if (!employeeId && !employeeCode && !employeeName) {
-      throw new Error('Either employeeId, employeeCode, or employeeName is required');
-    }
-    return true;
-  })
+  // Employee assignment is optional - can be assigned later
+  // body().custom((value) => {
+  //   const { employeeId, employeeCode, employeeName } = value;
+  //   if (!employeeId && !employeeCode && !employeeName) {
+  //     throw new Error('Either employeeId, employeeCode, or employeeName is required');
+  //   }
+  //   return true;
+  // })
 ];
 
 const validateGetServiceRequests = [

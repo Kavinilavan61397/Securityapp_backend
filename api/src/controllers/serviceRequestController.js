@@ -90,13 +90,12 @@ class ServiceRequestController {
         });
         searchMethod = 'employee name';
       } else {
-        return res.status(400).json({
-          success: false,
-          message: 'Either employeeId, employeeCode, or employeeName is required'
-        });
+        // No employee specified - create request without assignment (can be assigned later)
+        employee = null;
+        searchMethod = 'no employee assigned';
       }
 
-      if (!employee) {
+      if (!employee && searchMethod !== 'no employee assigned') {
         return res.status(404).json({
           success: false,
           message: `Employee not found by ${searchMethod} or not eligible for service requests`
@@ -131,7 +130,7 @@ class ServiceRequestController {
       const serviceRequest = new ServiceRequest({
         requestId: requestId,
         buildingId: buildingId,
-        employeeId: employee._id,
+        employeeId: employee ? employee._id : null,
         requesterId: requesterId,
         requestType: requestType || 'OTHER',
         requestTypeDisplay: requestTypeDisplay,
@@ -174,14 +173,14 @@ class ServiceRequestController {
             preferredTime: serviceRequest.preferredTime,
             createdAt: serviceRequest.createdAt,
             createdAtFormatted: serviceRequest.createdAtFormatted,
-            employee: {
+            employee: serviceRequest.employeeId ? {
               id: serviceRequest.employeeId._id,
               name: serviceRequest.employeeId.name,
               employeeType: serviceRequest.employeeId.employeeType,
               employeeTypeDisplay: serviceRequest.employeeId.employeeTypeDisplay,
               phoneNumber: serviceRequest.employeeId.phoneNumber,
               employeeCode: serviceRequest.employeeId.employeeCode
-            },
+            } : null,
             requester: {
               id: serviceRequest.requesterId._id,
               name: serviceRequest.requesterId.name,
@@ -310,14 +309,14 @@ class ServiceRequestController {
             estimatedCost: request.estimatedCost,
             actualCost: request.actualCost,
             costApproved: request.costApproved,
-            employee: {
+            employee: request.employeeId ? {
               id: request.employeeId._id,
               name: request.employeeId.name,
               employeeType: request.employeeId.employeeType,
               employeeTypeDisplay: request.employeeId.employeeTypeDisplay,
               phoneNumber: request.employeeId.phoneNumber,
               employeeCode: request.employeeId.employeeCode
-            },
+            } : null,
             requester: {
               id: request.requesterId._id,
               name: request.requesterId.name,
@@ -405,14 +404,14 @@ class ServiceRequestController {
             estimatedCost: request.estimatedCost,
             actualCost: request.actualCost,
             costApproved: request.costApproved,
-            employee: {
+            employee: request.employeeId ? {
               id: request.employeeId._id,
               name: request.employeeId.name,
               employeeType: request.employeeId.employeeType,
               employeeTypeDisplay: request.employeeId.employeeTypeDisplay,
               phoneNumber: request.employeeId.phoneNumber,
               employeeCode: request.employeeId.employeeCode
-            },
+            } : null,
             requester: {
               id: request.requesterId._id,
               name: request.requesterId.name,

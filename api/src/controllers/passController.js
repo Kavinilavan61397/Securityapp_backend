@@ -1,5 +1,6 @@
 const Pass = require('../models/Pass');
 const Building = require('../models/Building');
+const QRCode = require('qrcode');
 
 /**
  * Pass Controller
@@ -53,10 +54,64 @@ const createPass = async (req, res) => {
       { path: 'buildingId', select: 'name address.city' }
     ]);
 
+    // Generate QR code (same as pre-approval system)
+    try {
+      // Create lightweight QR code data for scanning
+      const qrCodeData = {
+        type: 'VISITOR_PASS',
+        passId: pass._id,
+        name: pass.name,
+        email: pass.email,
+        phoneNumber: pass.phoneNumber,
+        reasonForVisit: pass.reasonForVisit,
+        startingDate: pass.startingDate,
+        endingDate: pass.endingDate,
+        buildingId: pass.buildingId._id,
+        buildingName: pass.buildingId.name,
+        status: pass.status,
+        timestamp: Date.now()
+      };
+
+      // Create UI-friendly display data
+      const displayData = {
+        type: 'Visitor Pass',
+        visitorName: pass.name,
+        email: pass.email,
+        phoneNumber: pass.phoneNumber,
+        reason: pass.reasonForVisit,
+        startDate: new Date(pass.startingDate).toLocaleDateString(),
+        endDate: new Date(pass.endingDate).toLocaleDateString(),
+        checkInTime: pass.checkInTime,
+        buildingName: pass.buildingId.name,
+        status: pass.status
+      };
+
+      // Generate QR code string and image
+      const qrCodeString = JSON.stringify(qrCodeData);
+      const qrCodeImage = await QRCode.toDataURL(qrCodeString);
+
+      // Update pass with QR code data
+      pass.qrCodeData = JSON.stringify({ ...qrCodeData, displayData });
+      pass.qrCodeString = qrCodeString;
+      pass.qrCodeImage = qrCodeImage;
+      
+      await pass.save();
+    } catch (qrError) {
+      console.error('QR code generation error:', qrError);
+      // Continue without QR code if generation fails
+    }
+
     res.status(201).json({
       success: true,
       message: 'Visitor pass created successfully',
-      data: pass
+      data: {
+        ...pass.toObject(),
+        qrCode: {
+          data: pass.qrCodeData ? JSON.parse(pass.qrCodeData) : null,
+          string: pass.qrCodeString,
+          imageUrl: pass.qrCodeImage ? `/api/pass/${buildingId}/${pass._id}/qr-image` : null
+        }
+      }
     });
 
   } catch (error) {
@@ -134,11 +189,21 @@ const getPasses = async (req, res) => {
     const hasNextPage = parseInt(page) < totalPages;
     const hasPrevPage = parseInt(page) > 1;
 
+    // Add QR code data to each pass
+    const passesWithQR = passes.map(pass => ({
+      ...pass.toObject(),
+      qrCode: {
+        data: pass.qrCodeData ? JSON.parse(pass.qrCodeData) : null,
+        string: pass.qrCodeString,
+        imageUrl: pass.qrCodeImage ? `/api/pass/${buildingId}/${pass._id}/qr-image` : null
+      }
+    }));
+
     res.json({
       success: true,
       message: 'Passes retrieved successfully',
       data: {
-        passes,
+        passes: passesWithQR,
         pagination: {
           currentPage: parseInt(page),
           totalPages,
@@ -160,7 +225,57 @@ const getPasses = async (req, res) => {
   }
 };
 
+// Get QR code image for a specific pass
+const getQRCodeImage = async (req, res) => {
+  try {
+    const { buildingId, passId } = req.params;
+
+    // Find the pass
+    const pass = await Pass.findOne({ 
+      _id: passId, 
+      buildingId: buildingId,
+      isDeleted: false 
+    });
+
+    if (!pass) {
+      return res.status(404).json({
+        success: false,
+        message: 'Visitor pass not found'
+      });
+    }
+
+    if (!pass.qrCodeImage) {
+      return res.status(404).json({
+        success: false,
+        message: 'QR code not available for this pass'
+      });
+    }
+
+    // Extract base64 data from data URL
+    const base64Data = pass.qrCodeImage.split(',')[1];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Set headers for image response
+    res.set({
+      'Content-Type': 'image/png',
+      'Content-Length': buffer.length,
+      'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+    });
+
+    res.send(buffer);
+
+  } catch (error) {
+    console.error('Get QR code image error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve QR code image',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createPass,
-  getPasses
+  getPasses,
+  getQRCodeImage
 };

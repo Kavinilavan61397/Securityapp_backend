@@ -129,4 +129,15 @@ router.get(
   passController.getPasses
 );
 
+// Get QR code image for a specific pass
+router.get(
+  '/:buildingId/:passId/qr-image',
+  validateBuildingId,
+  handleValidationErrors,
+  authenticateToken,
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
+  buildingAccess,
+  passController.getQRCodeImage
+);
+
 module.exports = router;

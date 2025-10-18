@@ -74,6 +74,22 @@ const passSchema = new mongoose.Schema({
     required: true
   },
   
+  // QR Code Data (same as pre-approval system)
+  qrCodeData: {
+    type: String,
+    required: false
+  },
+  
+  qrCodeString: {
+    type: String,
+    required: false
+  },
+  
+  qrCodeImage: {
+    type: String,
+    required: false
+  },
+  
   // Soft Delete
   isDeleted: {
     type: Boolean,

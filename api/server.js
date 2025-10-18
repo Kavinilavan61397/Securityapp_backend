@@ -42,6 +42,8 @@ const passRoutes = require('./src/routes/pass');
 const employeeEntryRoutes = require('./src/routes/employeeEntry');
 // SERVICE REQUEST MANAGEMENT ROUTES - New Implementation
 const serviceRequestRoutes = require('./src/routes/serviceRequest');
+// MAINTENANCE REQUEST MANAGEMENT ROUTES - New Implementation
+const maintenanceRequestRoutes = require('./src/routes/maintenanceRequest');
 
 // Initialize Express app
 const app = express();
@@ -163,6 +165,8 @@ app.use('/api/pass', passRoutes);
 app.use('/api/employee-entries', employeeEntryRoutes);
 // SERVICE REQUEST MANAGEMENT ROUTES - New Implementation
 app.use('/api/service-requests', serviceRequestRoutes);
+// MAINTENANCE REQUEST MANAGEMENT ROUTES - New Implementation
+app.use('/api/maintenance-requests', maintenanceRequestRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {

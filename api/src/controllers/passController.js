@@ -274,8 +274,65 @@ const getQRCodeImage = async (req, res) => {
   }
 };
 
+// Get a specific visitor pass by ID
+const getPassById = async (req, res) => {
+  try {
+    const { buildingId, passId } = req.params;
+
+    // Validate building exists
+    const building = await Building.findById(buildingId);
+    if (!building) {
+      return res.status(404).json({
+        success: false,
+        message: 'Building not found'
+      });
+    }
+
+    // Find the specific pass
+    const pass = await Pass.findOne({ 
+      _id: passId, 
+      buildingId: buildingId,
+      isDeleted: false 
+    })
+    .populate('createdBy', 'name email role')
+    .populate('buildingId', 'name address.city');
+
+    if (!pass) {
+      return res.status(404).json({
+        success: false,
+        message: 'Visitor pass not found'
+      });
+    }
+
+    // Add QR code data (same format as getPasses)
+    const passWithQR = {
+      ...pass.toObject(),
+      qrCode: {
+        data: pass.qrCodeData ? JSON.parse(pass.qrCodeData) : null,
+        string: pass.qrCodeString,
+        imageUrl: pass.qrCodeImage ? `/api/pass/${buildingId}/${pass._id}/qr-image` : null
+      }
+    };
+
+    res.json({
+      success: true,
+      message: 'Visitor pass retrieved successfully',
+      data: passWithQR
+    });
+
+  } catch (error) {
+    console.error('Get pass by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve visitor pass',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createPass,
   getPasses,
+  getPassById,
   getQRCodeImage
 };

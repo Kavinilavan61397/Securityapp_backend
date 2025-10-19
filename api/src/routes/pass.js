@@ -129,6 +129,17 @@ router.get(
   passController.getPasses
 );
 
+// Get a specific visitor pass by ID
+router.get(
+  '/:buildingId/:passId',
+  validateBuildingId,
+  handleValidationErrors,
+  authenticateToken,
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
+  buildingAccess,
+  passController.getPassById
+);
+
 // Get QR code image for a specific pass
 router.get(
   '/:buildingId/:passId/qr-image',

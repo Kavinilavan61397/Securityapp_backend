@@ -42,7 +42,7 @@ router.post(
 router.get(
   '/my-complaints',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   ComplaintController.getMyComplaints
 );
 

@@ -1,24 +1,33 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { STORAGE_CONFIG } = require('../config/storage');
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '../../uploads/posts');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+let storage;
 
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    // Generate unique filename: timestamp + random + extension
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'post-' + uniqueSuffix + path.extname(file.originalname));
+if (STORAGE_CONFIG.type === 'memory') {
+  // Serverless environments - use memory storage
+  storage = multer.memoryStorage();
+} else {
+  // Traditional servers - use disk storage
+  const uploadDir = path.join(__dirname, '../../uploads/posts');
+  
+  // Ensure uploads directory exists (only on traditional servers)
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
   }
-});
+  
+  storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+      // Generate unique filename: timestamp + random + extension
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, 'post-' + uniqueSuffix + path.extname(file.originalname));
+    }
+  });
+}
 
 // File filter for images only
 const fileFilter = (req, file, cb) => {

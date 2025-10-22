@@ -16,10 +16,31 @@ const createPost = async (req, res) => {
       });
     }
 
-    // Handle uploaded images
-    let imagePaths = [];
+    // Handle uploaded images (environment-aware)
+    let imageData = [];
     if (req.files && req.files.length > 0) {
-      imagePaths = req.files.map(file => file.path);
+      imageData = req.files.map(file => {
+        // Check if file is from memory storage (serverless) or disk storage (traditional)
+        if (file.buffer) {
+          // Memory storage (Vercel/AWS Lambda)
+          return {
+            filename: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            data: file.buffer.toString('base64'),
+            storage: 'memory'
+          };
+        } else {
+          // Disk storage (traditional servers)
+          return {
+            filename: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            path: file.path, // File path on disk
+            storage: 'disk'
+          };
+        }
+      });
     }
 
     // Create new post
@@ -30,7 +51,7 @@ const createPost = async (req, res) => {
         email: user.email
       },
       description: description,
-      images: imagePaths,
+      images: imageData,
       building: user.building
     });
 
@@ -116,13 +137,17 @@ const deletePost = async (req, res) => {
       });
     }
 
-    // Delete associated images from filesystem
+why     // Handle file deletion based on storage type
     if (post.images && post.images.length > 0) {
       const fs = require('fs');
-      post.images.forEach(imagePath => {
-        if (fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
+      post.images.forEach(img => {
+        if (img.storage === 'disk' && img.path) {
+          // Delete file from disk (traditional servers only)
+          if (fs.existsSync(img.path)) {
+            fs.unlinkSync(img.path);
+          }
         }
+        // Memory storage files are automatically removed when post is deleted from database
       });
     }
 

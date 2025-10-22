@@ -1,7 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { STORAGE_CONFIG } = require('../config/storage');
+const STORAGE_CONFIG = require('../config/storage');
 
 let storage;
 

@@ -16,6 +16,16 @@ const createPost = async (req, res) => {
       });
     }
 
+    // Get building ID from JWT token (req.user.buildingId) or user.building
+    const buildingId = req.user.buildingId || user.building;
+    
+    if (!buildingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User must be assigned to a building to create posts'
+      });
+    }
+
     // Handle uploaded images (environment-aware)
     let imageData = [];
     if (req.files && req.files.length > 0) {
@@ -52,7 +62,7 @@ const createPost = async (req, res) => {
       },
       description: description,
       images: imageData,
-      building: user.building
+      building: buildingId
     });
 
     const savedPost = await newPost.save();

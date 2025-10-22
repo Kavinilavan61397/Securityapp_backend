@@ -44,6 +44,8 @@ const employeeEntryRoutes = require('./src/routes/employeeEntry');
 const serviceRequestRoutes = require('./src/routes/serviceRequest');
 // MAINTENANCE REQUEST MANAGEMENT ROUTES - New Implementation
 const maintenanceRequestRoutes = require('./src/routes/maintenanceRequest');
+// POST SHARING SYSTEM ROUTES - New Implementation
+const postRoutes = require('./src/routes/posts');
 
 // Initialize Express app
 const app = express();
@@ -167,6 +169,8 @@ app.use('/api/employee-entries', employeeEntryRoutes);
 app.use('/api/service-requests', serviceRequestRoutes);
 // MAINTENANCE REQUEST MANAGEMENT ROUTES - New Implementation
 app.use('/api/maintenance-requests', maintenanceRequestRoutes);
+// POST SHARING SYSTEM ROUTES - New Implementation
+app.use('/api/posts', postRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {

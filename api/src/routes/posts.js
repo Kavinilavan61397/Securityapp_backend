@@ -5,10 +5,10 @@ const { authenticateToken } = require('../middleware/auth');
 const { authorizeRoles } = require('../middleware/auth');
 const { uploadMultiple, handleUploadError } = require('../middleware/upload');
 
-// Create a new post - RESIDENT only
+// Create a new post - All roles
 router.post('/',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   uploadMultiple,
   handleUploadError,
   createPost
@@ -28,17 +28,17 @@ router.get('/:id',
   getPostById
 );
 
-// Get current user's posts - RESIDENT only
+// Get current user's posts - All roles
 router.get('/my-posts',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   getMyPosts
 );
 
-// Delete a post - RESIDENT only (own posts)
+// Delete a post - All roles (own posts only)
 router.delete('/:id',
   authenticateToken,
-  authorizeRoles(['RESIDENT']),
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   deletePost
 );
 

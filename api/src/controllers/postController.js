@@ -1,5 +1,6 @@
 const Post = require('../models/Post');
 const User = require('../models/User');
+const BlockedUser = require('../models/BlockedUser');
 
 // Create a new post
 const createPost = async (req, res) => {
@@ -83,19 +84,50 @@ const createPost = async (req, res) => {
   }
 };
 
-// Get all posts with pagination
+// Get all posts with pagination (filtered by blocked users)
 const getAllPosts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const userId = req.user.id;
+    const buildingId = req.user.buildingId;
 
-    // Get total count for pagination
-    const totalPosts = await Post.countDocuments();
+    // Get list of blocked user IDs and blocked post IDs for the current user
+    const blockedUsers = await BlockedUser.find({
+      blockerId: userId,
+      buildingId: buildingId
+    }).select('blockedUserId blockedPostId blockType');
+
+    const blockedUserIds = blockedUsers
+      .filter(block => block.blockType === 'USER')
+      .map(block => block.blockedUserId);
+    
+    const blockedPostIds = blockedUsers
+      .filter(block => block.blockType === 'POST')
+      .map(block => block.blockedPostId);
+
+    // Build query to exclude posts from blocked users and blocked posts
+    const query = {
+      building: buildingId
+    };
+
+    // If user has blocked users, exclude their posts
+    if (blockedUserIds.length > 0) {
+      query['author._id'] = { $nin: blockedUserIds };
+    }
+
+    // If user has blocked specific posts, exclude those posts
+    if (blockedPostIds.length > 0) {
+      query['_id'] = { $nin: blockedPostIds };
+    }
+
+    // Get total count for pagination (excluding blocked users)
+    const totalPosts = await Post.countDocuments(query);
     const totalPages = Math.ceil(totalPosts / limit);
 
-    // Get posts with pagination, sorted by newest first
-    const posts = await Post.find()
+    // Get posts with pagination, sorted by newest first, excluding blocked users
+    const posts = await Post.find(query)
       .populate('building', 'name address')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -111,6 +143,12 @@ const getAllPosts = async (req, res) => {
         hasNext: page < totalPages,
         hasPrev: page > 1,
         limit: limit
+      },
+      filters: {
+        blockedUsersCount: blockedUserIds.length,
+        blockedUserIds: blockedUserIds,
+        blockedPostsCount: blockedPostIds.length,
+        blockedPostIds: blockedPostIds
       }
     });
 
@@ -147,7 +185,7 @@ const deletePost = async (req, res) => {
       });
     }
 
-why     // Handle file deletion based on storage type
+    // Handle file deletion based on storage type
     if (post.images && post.images.length > 0) {
       const fs = require('fs');
       post.images.forEach(img => {

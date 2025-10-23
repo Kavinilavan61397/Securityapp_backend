@@ -46,6 +46,8 @@ const serviceRequestRoutes = require('./src/routes/serviceRequest');
 const maintenanceRequestRoutes = require('./src/routes/maintenanceRequest');
 // POST SHARING SYSTEM ROUTES - New Implementation
 const postRoutes = require('./src/routes/posts');
+// BLOCKED USERS MANAGEMENT ROUTES - New Implementation
+const blockedUserRoutes = require('./src/routes/blockedUsers');
 
 // Initialize Express app
 const app = express();
@@ -171,6 +173,8 @@ app.use('/api/service-requests', serviceRequestRoutes);
 app.use('/api/maintenance-requests', maintenanceRequestRoutes);
 // POST SHARING SYSTEM ROUTES - New Implementation
 app.use('/api/posts', postRoutes);
+// BLOCKED USERS MANAGEMENT ROUTES - New Implementation
+app.use('/api/blocked-users', blockedUserRoutes);
 
 // API base endpoint
 app.get('/api', (req, res) => {

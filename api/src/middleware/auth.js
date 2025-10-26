@@ -14,25 +14,34 @@ const User = require('../models/User');
  * @param {Function} next - Express next function
  */
 const authenticateToken = async (req, res, next) => {
+  const authStartTime = Date.now();
+  console.log('=== Authentication started ===');
+  
   try {
     // Check both lowercase and uppercase authorization headers
     const authHeader = req.headers['authorization'] || req.headers['Authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
+      console.log('No token provided');
       return res.status(401).json({
         success: false,
         message: 'Access token is required'
       });
     }
 
+    console.log('Token found, verifying...');
+    const tokenVerifyStart = Date.now();
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log(`Token verification took: ${Date.now() - tokenVerifyStart}ms`);
     
     // Check if user still exists and is active
     console.log('Finding user in database...');
+    const userQueryStart = Date.now();
     
     const user = await User.findById(decoded.userId).select('-otp');
+    console.log(`User query took: ${Date.now() - userQueryStart}ms`);
     
     if (!user) {
       console.log('User not found');
@@ -68,6 +77,9 @@ const authenticateToken = async (req, res, next) => {
     };
 
     console.log('Authenticated user:', { email: user.email, role: user.role, buildingId: user.buildingId });
+    
+    const authTotalTime = Date.now() - authStartTime;
+    console.log(`=== Authentication completed in ${authTotalTime}ms ===`);
     next();
 
   } catch (error) {

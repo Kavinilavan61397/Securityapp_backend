@@ -86,6 +86,10 @@ const createPost = async (req, res) => {
 
 // Get all posts with pagination (filtered by blocked users)
 const getAllPosts = async (req, res) => {
+  const startTime = Date.now();
+  console.log('=== getAllPosts started ===');
+  console.log('Request user:', { id: req.user.id, buildingId: req.user.buildingId });
+  
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -93,11 +97,16 @@ const getAllPosts = async (req, res) => {
     const userId = req.user.id;
     const buildingId = req.user.buildingId;
 
+    console.log('Query params:', { page, limit, skip, userId, buildingId });
+
     // Get list of blocked user IDs and blocked post IDs for the current user
+    console.log('Fetching blocked users...');
+    const blockedUsersStart = Date.now();
     const blockedUsers = await BlockedUser.find({
       blockerId: userId,
       buildingId: buildingId
     }).select('blockedUserId blockedPostId blockType');
+    console.log(`Blocked users query took: ${Date.now() - blockedUsersStart}ms`);
 
     const blockedUserIds = blockedUsers
       .filter(block => block.blockType === 'USER')
@@ -106,6 +115,8 @@ const getAllPosts = async (req, res) => {
     const blockedPostIds = blockedUsers
       .filter(block => block.blockType === 'POST')
       .map(block => block.blockedPostId);
+
+    console.log('Blocked data:', { blockedUserIds, blockedPostIds });
 
     // Build query to exclude posts from blocked users and blocked posts
     const query = {
@@ -122,20 +133,64 @@ const getAllPosts = async (req, res) => {
       query['_id'] = { $nin: blockedPostIds };
     }
 
+    console.log('Final query:', JSON.stringify(query, null, 2));
+
     // Get total count for pagination (excluding blocked users)
+    console.log('Counting total posts...');
+    const countStart = Date.now();
     const totalPosts = await Post.countDocuments(query);
+    console.log(`Count query took: ${Date.now() - countStart}ms`);
     const totalPages = Math.ceil(totalPosts / limit);
 
+    console.log('Pagination info:', { totalPosts, totalPages });
+
     // Get posts with pagination, sorted by newest first, excluding blocked users
+    console.log('Fetching posts...');
+    const postsStart = Date.now();
     const posts = await Post.find(query)
       .populate('building', 'name address')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // Use lean() to avoid virtual fields and improve performance
+    console.log(`Posts query took: ${Date.now() - postsStart}ms`);
+    console.log('Posts found:', posts.length);
+    
+    // Log sample post data to check for large image data
+    if (posts.length > 0) {
+      const samplePost = posts[0];
+      console.log('Sample post structure:', {
+        id: samplePost._id,
+        description: samplePost.description?.substring(0, 50) + '...',
+        imagesCount: samplePost.images?.length || 0,
+        hasImageData: samplePost.images?.some(img => img.data) || false,
+        imageDataSize: samplePost.images?.reduce((total, img) => total + (img.data?.length || 0), 0) || 0
+      });
+    }
 
-    res.status(200).json({
+    // Process posts to exclude large image data that could crash frontend
+    const processedPosts = posts.map(post => {
+      const processedPost = { ...post };
+      
+      // Remove base64 image data to prevent frontend crashes
+      if (processedPost.images && processedPost.images.length > 0) {
+        processedPost.images = processedPost.images.map(img => ({
+          filename: img.filename,
+          mimetype: img.mimetype,
+          size: img.size,
+          storage: img.storage,
+          // Exclude large base64 data
+          hasData: !!img.data,
+          dataSize: img.data ? img.data.length : 0
+        }));
+      }
+      
+      return processedPost;
+    });
+
+    const responseData = {
       success: true,
-      posts: posts,
+      posts: processedPosts,
       pagination: {
         currentPage: page,
         totalPages: totalPages,
@@ -150,10 +205,23 @@ const getAllPosts = async (req, res) => {
         blockedPostsCount: blockedPostIds.length,
         blockedPostIds: blockedPostIds
       }
+    };
+
+    console.log('Response data structure:', {
+      success: responseData.success,
+      postsCount: responseData.posts.length,
+      pagination: responseData.pagination,
+      filters: responseData.filters
     });
 
+    const totalTime = Date.now() - startTime;
+    console.log(`=== getAllPosts completed in ${totalTime}ms ===`);
+
+    res.status(200).json(responseData);
+
   } catch (error) {
-    console.error('Error fetching posts:', error);
+    const totalTime = Date.now() - startTime;
+    console.error(`Error fetching posts after ${totalTime}ms:`, error);
     res.status(500).json({
       success: false,
       message: 'Error fetching posts',
@@ -289,10 +357,46 @@ const getMyPosts = async (req, res) => {
   }
 };
 
+// Get post images (for individual post image loading)
+const getPostImages = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user.id;
+    const buildingId = req.user.buildingId;
+
+    const post = await Post.findOne({
+      _id: postId,
+      building: buildingId
+    }).select('images author');
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    // Return only image data for this specific post
+    res.status(200).json({
+      success: true,
+      images: post.images || []
+    });
+
+  } catch (error) {
+    console.error('Error fetching post images:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching post images',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createPost,
   getAllPosts,
   deletePost,
   getPostById,
-  getMyPosts
+  getMyPosts,
+  getPostImages
 };

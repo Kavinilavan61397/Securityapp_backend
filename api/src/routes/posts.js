@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createPost, getAllPosts, deletePost, getPostById, getMyPosts } = require('../controllers/postController');
+const { createPost, getAllPosts, deletePost, getPostById, getMyPosts, getPostImages } = require('../controllers/postController');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRoles } = require('../middleware/auth');
 const { uploadMultiple, handleUploadError } = require('../middleware/upload');
@@ -33,6 +33,13 @@ router.get('/my-posts',
   authenticateToken,
   authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
   getMyPosts
+);
+
+// Get post images - All roles (for individual post image loading)
+router.get('/:id/images',
+  authenticateToken,
+  authorizeRoles(['RESIDENT', 'SECURITY', 'BUILDING_ADMIN', 'SUPER_ADMIN']),
+  getPostImages
 );
 
 // Delete a post - All roles (own posts only)

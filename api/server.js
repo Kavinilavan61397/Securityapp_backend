@@ -52,6 +52,9 @@ const blockedUserRoutes = require('./src/routes/blockedUsers');
 // Initialize Express app
 const app = express();
 
+// Trust proxy for Vercel deployment
+app.set('trust proxy', 1);
+
 // Environment variables
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = process.env.PORT || 5000;

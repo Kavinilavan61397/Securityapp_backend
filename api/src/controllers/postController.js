@@ -232,26 +232,61 @@ const getAllPosts = async (req, res) => {
 
 // Delete a post (only by the author)
 const deletePost = async (req, res) => {
+  const deleteStartTime = Date.now();
+  console.log('=== deletePost started ===');
+  
   try {
     const postId = req.params.id;
     const userId = req.user.id;
+    
+    console.log('Delete request details:', {
+      postId,
+      userId,
+      userIdType: typeof userId,
+      userObject: req.user
+    });
+
+    // Validate postId format
+    if (!postId || postId.length !== 24) {
+      console.log('Invalid postId format:', postId);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
 
     // Find the post
+    console.log('Searching for post...');
     const post = await Post.findById(postId);
+    
     if (!post) {
+      console.log('Post not found in database');
       return res.status(404).json({
         success: false,
         message: 'Post not found'
       });
     }
 
+    console.log('Post found:', {
+      postId: post._id,
+      authorId: post.author._id,
+      authorIdType: typeof post.author._id,
+      authorIdString: post.author._id.toString(),
+      userIdString: userId.toString(),
+      userIdFromToken: userId,
+      comparison: post.author._id.toString() === userId.toString()
+    });
+
     // Check if user is the author
-    if (post.author._id.toString() !== userId) {
+    if (post.author._id.toString() !== userId.toString()) {
+      console.log('Authorization failed - user is not the author');
       return res.status(403).json({
         success: false,
         message: 'You can only delete your own posts'
       });
     }
+
+    console.log('Authorization successful - proceeding with deletion');
 
     // Handle file deletion based on storage type
     if (post.images && post.images.length > 0) {
@@ -268,7 +303,11 @@ const deletePost = async (req, res) => {
     }
 
     // Delete the post
+    console.log('Deleting post from database...');
     await Post.findByIdAndDelete(postId);
+
+    const deleteTotalTime = Date.now() - deleteStartTime;
+    console.log(`=== deletePost completed in ${deleteTotalTime}ms ===`);
 
     res.status(200).json({
       success: true,
@@ -276,7 +315,8 @@ const deletePost = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error deleting post:', error);
+    const deleteTotalTime = Date.now() - deleteStartTime;
+    console.error(`Error deleting post after ${deleteTotalTime}ms:`, error);
     res.status(500).json({
       success: false,
       message: 'Error deleting post',

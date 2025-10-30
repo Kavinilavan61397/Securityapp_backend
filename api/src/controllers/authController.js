@@ -276,7 +276,7 @@ class AuthController {
       }
 
       // 🎯 ROLE-BASED AUTHENTICATION FLOW
-      if (user.role === 'SECURITY' || user.role === 'BUILDING_ADMIN') {
+      if (user.role === 'SECURITY' || user.role === 'BUILDING_ADMIN' || user.role === 'SUPER_ADMIN') {
         // ✅ DIRECT TOKEN GENERATION - No OTP needed for admin roles
         const token = AuthController.generateToken(user);
 
@@ -339,7 +339,6 @@ class AuthController {
         });
 
       } else {
-        // Handle other roles (SUPER_ADMIN, etc.)
         return res.status(401).json({
           success: false,
           message: 'Invalid user role'

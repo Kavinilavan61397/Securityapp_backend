@@ -50,7 +50,7 @@ router.get(
 router.get(
   '/all',
   authenticateToken,
-  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY']),
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   ComplaintController.getAllComplaints
 );
 

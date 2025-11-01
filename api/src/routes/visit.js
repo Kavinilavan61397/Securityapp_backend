@@ -19,6 +19,11 @@ const validateParams = [
   }).withMessage('Invalid visit ID format')
 ];
 
+const validateResidentParams = [
+  param('buildingId').isMongoId().withMessage('Invalid building ID'),
+  param('residentId').isMongoId().withMessage('Invalid resident ID')
+];
+
 const validateQuery = [
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
   query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
@@ -29,6 +34,15 @@ const validateQuery = [
   query('endDate').optional().isISO8601().withMessage('Invalid end date format'),
   query('hostId').optional().isMongoId().withMessage('Invalid host ID'),
   query('visitorId').optional().isMongoId().withMessage('Invalid visitor ID')
+];
+
+const validateResidentVisitorQuery = [
+  query('visitPage').optional().isInt({ min: 1 }).withMessage('visitPage must be a positive integer'),
+  query('visitLimit').optional().isInt({ min: 1, max: 100 }).withMessage('visitLimit must be between 1 and 100'),
+  query('visitStatus').optional().isIn(['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED']).withMessage('Invalid visit status'),
+  query('preApprovalPage').optional().isInt({ min: 1 }).withMessage('preApprovalPage must be a positive integer'),
+  query('preApprovalLimit').optional().isInt({ min: 1, max: 100 }).withMessage('preApprovalLimit must be between 1 and 100'),
+  query('preApprovalStatus').optional().isIn(['PENDING', 'APPROVED', 'REJECTED', 'EXPIRED']).withMessage('Invalid pre-approval status')
 ];
 
 const validateVisitCreation = [
@@ -115,6 +129,15 @@ router.get('/:buildingId/resident',
   buildingAccess,
   authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
   VisitController.getResidentVisits
+);
+
+// Get visitor + pre-approval overview for a resident
+router.get('/:buildingId/residents/:residentId/visitors',
+  validateResidentParams,
+  validateResidentVisitorQuery,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
+  VisitController.getResidentVisitorOverview
 );
 
 // Validate QR code and get live visit status (for all roles)

@@ -4,6 +4,7 @@ const Visitor = require('../models/Visitor');
 const User = require('../models/User');
 const Building = require('../models/Building');
 const Notification = require('../models/Notification');
+const PreApproval = require('../models/PreApproval');
 const { validationResult } = require('express-validator');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
@@ -384,6 +385,140 @@ class VisitController {
       res.status(500).json({
         success: false,
         message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Get all visitors and pre-approvals for a resident
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async getResidentVisitorOverview(req, res) {
+    try {
+      const { buildingId, residentId } = req.params;
+      const {
+        visitPage = 1,
+        visitLimit = 10,
+        visitStatus,
+        preApprovalPage = 1,
+        preApprovalLimit = 10,
+        preApprovalStatus
+      } = req.query;
+
+      const currentUserId = req.user.id || req.user.userId;
+      const currentUserRole = req.user.role;
+
+      // Residents can only fetch their own data
+      if (currentUserRole === 'RESIDENT' && currentUserId.toString() !== residentId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You can only view your own visitors.'
+        });
+      }
+
+      const buildingObjectId = new mongoose.Types.ObjectId(buildingId);
+      const residentObjectId = new mongoose.Types.ObjectId(residentId);
+
+      // Ensure resident exists within the same building
+      const resident = await User.findOne({
+        _id: residentObjectId,
+        role: 'RESIDENT',
+        buildingId: buildingObjectId
+      }).select('name email phoneNumber flatNumber blockNumber buildingId');
+
+      if (!resident) {
+        return res.status(404).json({
+          success: false,
+          message: 'Resident not found for this building.'
+        });
+      }
+
+      // Build visit query
+      const visitQuery = {
+        buildingId: buildingObjectId,
+        hostId: residentObjectId
+      };
+
+      if (visitStatus) {
+        visitQuery.status = visitStatus;
+      }
+
+      const visitSkip = (visitPage - 1) * visitLimit;
+
+      const [visits, totalVisits] = await Promise.all([
+        Visit.find(visitQuery)
+          .populate([
+            { path: 'visitorId', select: 'name phoneNumber email visitorCategory serviceType' },
+            { path: 'hostId', select: 'name phoneNumber email flatNumber' }
+          ])
+          .sort({ createdAt: -1 })
+          .skip(visitSkip)
+          .limit(parseInt(visitLimit, 10)),
+        Visit.countDocuments(visitQuery)
+      ]);
+
+      // Build pre-approval query
+      const preApprovalQuery = {
+        buildingId: buildingObjectId,
+        residentId: residentObjectId,
+        isDeleted: false
+      };
+
+      if (preApprovalStatus) {
+        preApprovalQuery.status = preApprovalStatus;
+      }
+
+      const preApprovalSkip = (preApprovalPage - 1) * preApprovalLimit;
+
+      const [preApprovals, totalPreApprovals] = await Promise.all([
+        PreApproval.find(preApprovalQuery)
+          .sort({ createdAt: -1 })
+          .skip(preApprovalSkip)
+          .limit(parseInt(preApprovalLimit, 10)),
+        PreApproval.countDocuments(preApprovalQuery)
+      ]);
+
+      res.status(200).json({
+        success: true,
+        message: 'Resident visitor overview fetched successfully',
+        data: {
+          resident: {
+            id: resident._id,
+            name: resident.name,
+            email: resident.email,
+            phoneNumber: resident.phoneNumber,
+            flatNumber: resident.flatNumber,
+            blockNumber: resident.blockNumber
+          },
+          visits: {
+            items: visits,
+            pagination: {
+              currentPage: parseInt(visitPage, 10),
+              totalPages: Math.ceil(totalVisits / visitLimit),
+              totalItems: totalVisits,
+              hasNext: visitPage < Math.ceil(totalVisits / visitLimit),
+              hasPrev: visitPage > 1
+            }
+          },
+          preApprovals: {
+            items: preApprovals,
+            pagination: {
+              currentPage: parseInt(preApprovalPage, 10),
+              totalPages: Math.ceil(totalPreApprovals / preApprovalLimit),
+              totalItems: totalPreApprovals,
+              hasNext: preApprovalPage < Math.ceil(totalPreApprovals / preApprovalLimit),
+              hasPrev: preApprovalPage > 1
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Get resident visitor overview error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch resident visitor overview',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }

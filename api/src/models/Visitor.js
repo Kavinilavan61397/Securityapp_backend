@@ -78,8 +78,8 @@ const visitorSchema = new mongoose.Schema({
 
   serviceType: {
     type: String,
-    trim: true,
-    maxlength: [50, 'Service type cannot exceed 50 characters']
+    enum: ['UBER', 'OLA', 'SWIGGY', 'ZOMATO', 'AMAZON', 'FLIPKART', 'DUNZO', 'BIGBASKET', 'PERSONAL_MAID', 'PLUMBER', 'ELECTRICIAN', 'CARPENTER', 'PAINTER', 'PERSONAL', 'OTHER'],
+    default: 'OTHER'
   },
 
   // Employee-specific fields (for FLAT_EMPLOYEE category)

@@ -78,7 +78,8 @@ const visitorSchema = new mongoose.Schema({
 
   serviceType: {
     type: String,
-    enum: ['UBER', 'OLA', 'SWIGGY', 'ZOMATO', 'AMAZON', 'FLIPKART', 'DUNZO', 'BIGBASKET', 'PERSONAL_MAID', 'PLUMBER', 'ELECTRICIAN', 'CARPENTER', 'PAINTER', 'PERSONAL', 'OTHER'],
+    trim: true,
+    maxlength: [50, 'Service type cannot exceed 50 characters'],
     default: 'OTHER'
   },
 

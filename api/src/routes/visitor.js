@@ -101,8 +101,9 @@ const validateVisitorCreation = [
   // Service Type validation
   body('serviceType')
     .optional()
-    .isIn(['UBER', 'OLA', 'SWIGGY', 'ZOMATO', 'AMAZON', 'FLIPKART', 'DUNZO', 'BIGBASKET', 'PERSONAL_MAID', 'PLUMBER', 'ELECTRICIAN', 'CARPENTER', 'PAINTER', 'PERSONAL', 'OTHER'])
-    .withMessage('Invalid service type'),
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Service type cannot exceed 50 characters'),
   
   // Employee Code validation (for FLAT_EMPLOYEE category)
   body('employeeCode')
@@ -198,8 +199,9 @@ const validateVisitorUpdate = [
   // Service Type validation
   body('serviceType')
     .optional()
-    .isIn(['UBER', 'OLA', 'SWIGGY', 'ZOMATO', 'AMAZON', 'FLIPKART', 'DUNZO', 'BIGBASKET', 'PERSONAL_MAID', 'PLUMBER', 'ELECTRICIAN', 'CARPENTER', 'PAINTER', 'PERSONAL', 'OTHER'])
-    .withMessage('Invalid service type'),
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Service type cannot exceed 50 characters'),
   
   // Employee Code validation (for FLAT_EMPLOYEE category)
   body('employeeCode')

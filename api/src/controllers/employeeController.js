@@ -53,11 +53,24 @@ class EmployeeController {
         });
       }
 
+      // Parse joiningDate if provided (handle both ISO8601 and dd/MM/yyyy formats)
+      let formattedJoiningDate;
+      if (joiningDate) {
+        if (joiningDate.includes('/')) {
+          // Parse dd/MM/yyyy format
+          const [day, month, year] = joiningDate.split('/');
+          formattedJoiningDate = new Date(year, month - 1, day);
+        } else {
+          // Parse ISO8601 format (YYYY-MM-DD)
+          formattedJoiningDate = new Date(joiningDate);
+        }
+      }
+
       // Create new employee
       const employee = new Employee({
         name,
         phoneNumber,
-        joiningDate: joiningDate ? new Date(joiningDate) : undefined,
+        joiningDate: formattedJoiningDate,
         employeeType,
         canLogin,
         email,
@@ -337,7 +350,19 @@ class EmployeeController {
       const updateData = {};
       if (name) updateData.name = name;
       if (phoneNumber) updateData.phoneNumber = phoneNumber;
-      if (joiningDate) updateData.joiningDate = new Date(joiningDate);
+      if (joiningDate) {
+        // Handle both ISO8601 (YYYY-MM-DD) and dd/MM/yyyy formats
+        let formattedDate;
+        if (joiningDate.includes('/')) {
+          // Parse dd/MM/yyyy format
+          const [day, month, year] = joiningDate.split('/');
+          formattedDate = new Date(year, month - 1, day);
+        } else {
+          // Parse ISO8601 format (YYYY-MM-DD)
+          formattedDate = new Date(joiningDate);
+        }
+        updateData.joiningDate = formattedDate;
+      }
       if (employeeType) updateData.employeeType = employeeType;
       if (canLogin !== undefined) updateData.canLogin = canLogin;
       if (email !== undefined) updateData.email = email;

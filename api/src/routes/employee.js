@@ -37,8 +37,13 @@ const validateCreateEmployee = [
   
   body('joiningDate')
     .optional()
-    .isISO8601()
-    .withMessage('Please enter a valid date (YYYY-MM-DD)'),
+    .custom((value) => {
+      // Accept both ISO8601 (YYYY-MM-DD) and dd/MM/yyyy formats
+      const iso8601Regex = /^\d{4}-\d{2}-\d{2}$/;
+      const ddMMyyyyRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+      return iso8601Regex.test(value) || ddMMyyyyRegex.test(value);
+    })
+    .withMessage('Please enter a valid date (YYYY-MM-DD or dd/MM/yyyy)'),
   
   body('employeeType')
     .optional()
@@ -126,8 +131,13 @@ const validateUpdateEmployee = [
   
   body('joiningDate')
     .optional()
-    .isISO8601()
-    .withMessage('Please enter a valid date (YYYY-MM-DD)'),
+    .custom((value) => {
+      // Accept both ISO8601 (YYYY-MM-DD) and dd/MM/yyyy formats
+      const iso8601Regex = /^\d{4}-\d{2}-\d{2}$/;
+      const ddMMyyyyRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+      return iso8601Regex.test(value) || ddMMyyyyRegex.test(value);
+    })
+    .withMessage('Please enter a valid date (YYYY-MM-DD or dd/MM/yyyy)'),
   
   body('employeeType')
     .optional()

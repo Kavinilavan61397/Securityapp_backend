@@ -66,17 +66,22 @@ const authenticateToken = async (req, res, next) => {
     }
 
     // Add user info to request
+    const roles = user.roles && user.roles.length ? user.roles : (user.role ? [user.role] : []);
+    const activeRole = user.activeRole && roles.includes(user.activeRole) ? user.activeRole : roles[0];
+
     req.user = {
       id: user._id,
       userId: user._id,
       email: user.email,
-      role: user.role,
+      role: activeRole,
+      roles,
+      activeRole,
       name: user.name,
       buildingId: user.buildingId,
       isVerified: user.isVerified
     };
 
-    console.log('Authenticated user:', { email: user.email, role: user.role, buildingId: user.buildingId });
+    console.log('Authenticated user:', { email: user.email, roles, activeRole, buildingId: user.buildingId });
     
     const authTotalTime = Date.now() - authStartTime;
     console.log(`=== Authentication completed in ${authTotalTime}ms ===`);
@@ -113,10 +118,6 @@ const authenticateToken = async (req, res, next) => {
 const authorizeRoles = (allowedRoles) => {
   return (req, res, next) => {
     try {
-      console.log('=== authorizeRoles middleware started ===');
-      console.log('User role:', req.user.role);
-      console.log('Allowed roles:', allowedRoles);
-      
       if (!req.user) {
         console.log('No user found');
         return res.status(401).json({
@@ -125,16 +126,34 @@ const authorizeRoles = (allowedRoles) => {
         });
       }
 
-      if (!allowedRoles.includes(req.user.role)) {
-        console.log('Access denied - role not allowed');
+      console.log('=== authorizeRoles middleware started ===');
+      const userRoles = req.user.roles && req.user.roles.length ? req.user.roles : [req.user.role];
+      const activeRole = req.user.activeRole || req.user.role;
+
+      console.log('User roles:', userRoles);
+      console.log('Active role:', activeRole);
+      console.log('Allowed roles:', allowedRoles);
+
+      if (allowedRoles.includes(activeRole)) {
+        console.log('Role authorized successfully');
+        return next();
+      }
+
+      const hasMatchingRole = userRoles.some(role => allowedRoles.includes(role));
+
+      if (hasMatchingRole) {
+        console.log('Access denied - switch required');
         return res.status(403).json({
           success: false,
-          message: 'Access denied. Insufficient permissions.'
+          message: 'Access denied. Please switch account to an authorized role before accessing this resource.'
         });
       }
 
-      console.log('Role authorized successfully');
-      next();
+      console.log('Access denied - role not allowed');
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Insufficient permissions.'
+      });
 
     } catch (error) {
       console.error('Authorization error:', error);
@@ -204,7 +223,8 @@ const buildingAccess = async (req, res, next) => {
       }
 
       // Super admins can access all buildings
-      if (req.user.role === 'SUPER_ADMIN') {
+      const userRoles = req.user.roles && req.user.roles.length ? req.user.roles : [req.user.role];
+      if (userRoles.includes('SUPER_ADMIN')) {
         return next();
       }
 
@@ -227,7 +247,7 @@ const buildingAccess = async (req, res, next) => {
       }
 
       // If user doesn't have a buildingId but is not a Super Admin, deny access
-      if (!req.user.buildingId && req.user.role !== 'SUPER_ADMIN') {
+      if (!req.user.buildingId && !userRoles.includes('SUPER_ADMIN')) {
         return res.status(403).json({
           success: false,
           message: 'Access denied. You must be assigned to a building.'
@@ -349,7 +369,7 @@ const requireApproval = (allowedStatuses = ['APPROVED']) => {
       }
 
       // Get user with approval status
-      const user = await User.findById(req.user.userId).select('approvalStatus role');
+      const user = await User.findById(req.user.userId).select('approvalStatus role roles');
       if (!user) {
         return res.status(401).json({
           success: false,
@@ -358,7 +378,8 @@ const requireApproval = (allowedStatuses = ['APPROVED']) => {
       }
 
       // Super admins and building admins don't need approval
-      if (['SUPER_ADMIN', 'BUILDING_ADMIN'].includes(user.role)) {
+      const userRoles = user.roles && user.roles.length ? user.roles : (user.role ? [user.role] : []);
+      if (userRoles.includes('SUPER_ADMIN') || userRoles.includes('BUILDING_ADMIN')) {
         return next();
       }
 

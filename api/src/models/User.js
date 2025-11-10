@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+const USER_ROLES = ['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT'];
+
 // User model for pre-approval automation
 const userSchema = new mongoose.Schema({
   // Basic Information
@@ -49,9 +51,21 @@ const userSchema = new mongoose.Schema({
   // Role-based System
   role: {
     type: String,
-    enum: ['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT'],
+    enum: USER_ROLES,
     required: false,
     default: 'RESIDENT'
+  },
+
+  roles: {
+    type: [String],
+    enum: USER_ROLES,
+    default: undefined
+  },
+
+  activeRole: {
+    type: String,
+    enum: USER_ROLES,
+    default: undefined
   },
   
   // Building Assignment (for Building Admin, Security, Resident)
@@ -59,7 +73,8 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Building',
     required: function() {
-      return ['BUILDING_ADMIN', 'SECURITY'].includes(this.role);
+      const roles = (this.roles && this.roles.length ? this.roles : (this.role ? [this.role] : []));
+      return roles.includes('BUILDING_ADMIN') || roles.includes('SECURITY');
     }
   },
   
@@ -67,10 +82,12 @@ const userSchema = new mongoose.Schema({
   employeeCode: {
     type: String,
     required: function() {
-      return ['BUILDING_ADMIN', 'SECURITY'].includes(this.role);
+      const roles = (this.roles && this.roles.length ? this.roles : (this.role ? [this.role] : []));
+      return roles.includes('BUILDING_ADMIN') || roles.includes('SECURITY');
     },
     unique: function() {
-      return ['BUILDING_ADMIN', 'SECURITY'].includes(this.role);
+      const roles = (this.roles && this.roles.length ? this.roles : (this.role ? [this.role] : []));
+      return roles.includes('BUILDING_ADMIN') || roles.includes('SECURITY');
     },
     sparse: true
   },
@@ -336,6 +353,7 @@ userSchema.index({ username: 1 });
 userSchema.index({ email: 1 });
 userSchema.index({ phoneNumber: 1 });
 userSchema.index({ role: 1 });
+userSchema.index({ roles: 1 });
 userSchema.index({ buildingId: 1 });
 userSchema.index({ employeeCode: 1 }, { sparse: true });
 
@@ -382,6 +400,46 @@ userSchema.virtual('verificationLevel').get(function() {
 
 // Pre-save middleware
 userSchema.pre('save', async function(next) {
+  // Normalize roles and activeRole
+  let roles = Array.isArray(this.roles) ? this.roles.filter(Boolean) : [];
+
+  if (!roles.length && this.role) {
+    roles = [this.role];
+  }
+
+  roles = roles
+    .map(role => (role ? role.toUpperCase() : null))
+    .filter(role => role && USER_ROLES.includes(role));
+
+  // Ensure building admins are also residents by default
+  if (roles.includes('BUILDING_ADMIN') && !roles.includes('RESIDENT')) {
+    roles.push('RESIDENT');
+  }
+
+  // Fallback to RESIDENT if still empty
+  if (!roles.length) {
+    roles = ['RESIDENT'];
+  }
+
+  // Remove duplicates while preserving order
+  const seen = new Set();
+  roles = roles.filter(role => {
+    if (seen.has(role)) return false;
+    seen.add(role);
+    return true;
+  });
+
+  this.roles = roles;
+
+  if (!this.activeRole || !this.roles.includes(this.activeRole)) {
+    // Prefer existing role if valid
+    const preferredRole = this.role && this.roles.includes(this.role) ? this.role : this.roles[0];
+    this.activeRole = preferredRole;
+  }
+
+  // Keep legacy role field in sync for backward compatibility
+  this.role = this.activeRole;
+
   // Calculate age from dateOfBirth if not provided
   if (this.dateOfBirth && !this.age) {
     this.age = this.calculatedAge;
@@ -504,14 +562,17 @@ userSchema.methods.hasPermission = function(permission) {
     'SECURITY': ['manage_visitors', 'capture_photos', 'scan_qr', 'view_visits'],
     'RESIDENT': ['manage_own_visitors', 'view_own_visits', 'receive_notifications']
   };
-  
-  const permissions = rolePermissions[this.role] || [];
-  return permissions.includes('all') || permissions.includes(permission);
+
+  const roles = this.roles && this.roles.length ? this.roles : (this.role ? [this.role] : []);
+  return roles.some(role => {
+    const permissions = rolePermissions[role] || [];
+    return permissions.includes('all') || permissions.includes(permission);
+  });
 };
 
 // Static methods
 userSchema.statics.findByRole = function(role) {
-  return this.find({ role, isActive: true });
+  return this.find({ roles: role, isActive: true });
 };
 
 userSchema.statics.findByBuilding = function(buildingId) {

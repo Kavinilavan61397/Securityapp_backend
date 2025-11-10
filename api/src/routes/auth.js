@@ -219,6 +219,21 @@ const loginValidation = [
     .withMessage('Password must be at least 6 characters long')
 ];
 
+const switchRoleValidation = [
+  body('role')
+    .trim()
+    .notEmpty()
+    .withMessage('Role is required')
+    .custom((value) => {
+      const upper = value.toUpperCase();
+      const allowed = ['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT'];
+      if (!allowed.includes(upper)) {
+        throw new Error('Invalid role specified');
+      }
+      return true;
+    })
+];
+
 const otpValidation = [
   body('userId')
     .optional()
@@ -422,6 +437,19 @@ router.post('/reset-password', resetPasswordValidation, authController.resetPass
  * @access  Private (Authenticated users only)
  */
 router.get('/profile', authenticateToken, requireVerification(), authController.getProfile);
+
+/**
+ * @route   POST /api/auth/switch-role
+ * @desc    Switch active role for multi-role users
+ * @access  Private (Authenticated users only)
+ */
+router.post(
+  '/switch-role',
+  authenticateToken,
+  requireVerification(),
+  switchRoleValidation,
+  authController.switchRole
+);
 
 /**
  * @route   GET /api/auth/users

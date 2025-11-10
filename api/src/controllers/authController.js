@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const emailService = require('../services/emailService');
 
+const USER_ROLES = ['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT'];
+
 /**
  * Authentication Controller
  * Handles user registration, login, OTP verification, and role-based access
@@ -17,12 +19,41 @@ class AuthController {
    * @param {Object} user - User object
    * @returns {String} JWT token
    */
+  static getRoleContext(user) {
+    let roles = Array.isArray(user.roles) && user.roles.length
+      ? [...user.roles]
+      : (user.role ? [user.role] : []);
+
+    roles = roles
+      .filter(Boolean)
+      .map(role => role.toUpperCase())
+      .filter((role, index, self) => USER_ROLES.includes(role) && self.indexOf(role) === index);
+
+    if (roles.includes('BUILDING_ADMIN') && !roles.includes('RESIDENT')) {
+      roles.push('RESIDENT');
+    }
+
+    if (!roles.length) {
+      roles = ['RESIDENT'];
+    }
+
+    const activeRole = user.activeRole && roles.includes(user.activeRole)
+      ? user.activeRole
+      : roles[0];
+
+    return { roles, activeRole };
+  }
+
   static generateToken(user) {
+    const { roles, activeRole } = AuthController.getRoleContext(user);
+
     return jwt.sign(
       {
         userId: user._id,
         email: user.email,
-        role: user.role,
+        role: activeRole,
+        roles,
+        activeRole,
         buildingId: user.buildingId
       },
       process.env.JWT_SECRET,
@@ -140,6 +171,8 @@ class AuthController {
 
       await user.save();
 
+      const { roles, activeRole } = AuthController.getRoleContext(user);
+
       // Generate OTP for verification
       const otpCode = user.generateOTP();
       await user.save();
@@ -164,7 +197,9 @@ class AuthController {
           userId: user._id,
           username: user.username, // Optional display field
           email: user.email,
-          role: user.role,
+          role: activeRole,
+          roles,
+          activeRole,
           isVerified: user.isVerified,
           verificationLevel: user.verification?.verificationLevel || 'PENDING',
           emailSent: emailResult.success,
@@ -275,8 +310,14 @@ class AuthController {
         });
       }
 
+      const { roles, activeRole } = AuthController.getRoleContext(user);
+      user.roles = roles;
+      user.activeRole = activeRole;
+      user.role = activeRole;
+      await user.save();
+
       // 🎯 ROLE-BASED AUTHENTICATION FLOW
-      if (user.role === 'SECURITY' || user.role === 'BUILDING_ADMIN' || user.role === 'SUPER_ADMIN') {
+      if (activeRole === 'SECURITY' || activeRole === 'BUILDING_ADMIN' || activeRole === 'SUPER_ADMIN') {
         // ✅ DIRECT TOKEN GENERATION - No OTP needed for admin roles
         const token = AuthController.generateToken(user);
 
@@ -295,7 +336,9 @@ class AuthController {
               name: user.name,
               email: user.email,
               phoneNumber: user.phoneNumber,
-              role: user.role,
+              role: activeRole,
+              roles,
+              activeRole,
               roleDisplay: user.roleDisplay,
               buildingId: user.buildingId,
               employeeCode: user.employeeCode,
@@ -307,7 +350,7 @@ class AuthController {
           }
         });
 
-      } else if (user.role === 'RESIDENT') {
+      } else if (activeRole === 'RESIDENT') {
         // ✅ DIRECT LOGIN - No OTP required for residents
         const token = AuthController.generateToken(user);
         
@@ -326,7 +369,9 @@ class AuthController {
               name: user.name,
               email: user.email,
               phoneNumber: user.phoneNumber,
-              role: user.role,
+              role: activeRole,
+              roles,
+              activeRole,
               roleDisplay: user.roleDisplay,
               buildingId: user.buildingId,
               flatNumber: user.flatNumber,
@@ -375,7 +420,7 @@ class AuthController {
       // Find resident by phone number (flat number is now optional)
       const user = await User.findOne({
         phoneNumber,
-        role: 'RESIDENT',
+        roles: 'RESIDENT',
         ...(flatNumber && { flatNumber })
       }).select('+password');
 
@@ -418,6 +463,11 @@ class AuthController {
         });
       }
 
+      const { roles, activeRole } = AuthController.getRoleContext(user);
+      user.roles = roles;
+      user.activeRole = activeRole;
+      user.role = activeRole;
+
       // Generate OTP for verification
       const otpCode = user.generateOTP();
       await user.save();
@@ -444,7 +494,9 @@ class AuthController {
           email: user.email,
           phoneNumber: user.phoneNumber,
           flatNumber: user.flatNumber,
-          role: user.role,
+          role: activeRole,
+          roles,
+          activeRole,
           isVerified: user.isVerified,
           verificationLevel: user.verification?.verificationLevel || 'PENDING',
           otpSent: true,
@@ -520,6 +572,11 @@ class AuthController {
         await user.save();
       }
 
+      const { roles, activeRole } = AuthController.getRoleContext(user);
+      user.roles = roles;
+      user.activeRole = activeRole;
+      user.role = activeRole;
+
       // Send welcome email if this was the first verification
       if (wasUnverified) {
         const welcomeResult = await emailService.sendWelcomeEmail(
@@ -549,7 +606,9 @@ class AuthController {
             name: user.name,
             username: user.username,
             email: user.email,
-            role: user.role,
+            role: activeRole,
+            roles,
+            activeRole,
             roleDisplay: user.roleDisplay,
             buildingId: user.buildingId,
             isVerified: user.isVerified,
@@ -659,10 +718,16 @@ class AuthController {
         });
       }
 
+      const { roles, activeRole } = AuthController.getRoleContext(user);
+      const userData = user.toObject({ virtuals: true });
+      userData.role = activeRole;
+      userData.roles = roles;
+      userData.activeRole = activeRole;
+
       res.status(200).json({
         success: true,
         data: {
-          user
+          user: userData
         }
       });
 
@@ -704,6 +769,8 @@ class AuthController {
 
       await user.save();
 
+      const { roles, activeRole } = AuthController.getRoleContext(user);
+
       res.status(200).json({
         success: true,
         message: 'Profile updated successfully',
@@ -712,7 +779,9 @@ class AuthController {
             id: user._id,
             name: user.name,
             email: user.email,
-            role: user.role,
+            role: activeRole,
+            roles,
+            activeRole,
             age: user.age,
             gender: user.gender,
             profilePicture: user.profilePicture
@@ -746,6 +815,74 @@ class AuthController {
 
     } catch (error) {
       console.error('Logout error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      });
+    }
+  }
+
+  /**
+   * Switch Active Role
+   * POST /api/auth/switch-role
+   */
+  async switchRole(req, res) {
+    try {
+      const { role } = req.body;
+
+      if (!role) {
+        return res.status(400).json({
+          success: false,
+          message: 'Role is required'
+        });
+      }
+
+      const targetRole = role.toUpperCase();
+
+      if (!USER_ROLES.includes(targetRole)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid role specified'
+        });
+      }
+
+      const user = await User.findById(req.user.userId);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      const { roles } = AuthController.getRoleContext(user);
+
+      if (!roles.includes(targetRole)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to switch to the requested role'
+        });
+      }
+
+      user.roles = roles;
+      user.activeRole = targetRole;
+      user.role = targetRole; // legacy support
+      await user.save();
+
+      const token = AuthController.generateToken(user);
+
+      res.status(200).json({
+        success: true,
+        message: 'Role switched successfully',
+        data: {
+          token,
+          activeRole: targetRole,
+          roles
+        }
+      });
+
+    } catch (error) {
+      console.error('Switch role error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',
@@ -830,6 +967,9 @@ class AuthController {
 
       await user.save();
 
+      const { roles: userRoles, activeRole: userActiveRole } = AuthController.getRoleContext(user);
+      const { roles: adminRoles, activeRole: adminActiveRole } = AuthController.getRoleContext(admin);
+
       res.status(200).json({
         success: true,
         message: `User ${verificationLevel.toLowerCase()} successfully`,
@@ -837,14 +977,18 @@ class AuthController {
           userId: user._id,
           name: user.name,
           email: user.email,
-          role: user.role,
+          role: userActiveRole,
+          roles: userRoles,
+          activeRole: userActiveRole,
           verificationLevel: user.verification.verificationLevel,
           isVerified: user.verification.isVerified,
           verifiedAt: user.verification.verifiedAt,
           verifiedBy: {
             id: admin._id,
             name: admin.name,
-            role: admin.role
+            role: adminActiveRole,
+            roles: adminRoles,
+            activeRole: adminActiveRole
           }
         }
       });
@@ -866,7 +1010,7 @@ class AuthController {
    */
   async getAllUsers(req, res) {
     try {
-      const currentUserRole = req.user.role;
+      const currentUserRole = req.user.activeRole || req.user.role;
       const currentUserBuildingId = req.user.buildingId;
       
       // Get query parameters
@@ -881,12 +1025,12 @@ class AuthController {
       
       if (currentUserRole === 'SUPER_ADMIN') {
         // Super admin can see all users
-        if (role) query.role = role;
+        if (role) query.roles = role;
         if (isActive !== undefined) query.isActive = isActive === 'true';
       } else if (currentUserRole === 'BUILDING_ADMIN') {
         // Building admin can see users in their building
         query.buildingId = currentUserBuildingId;
-        if (role) query.role = role;
+        if (role) query.roles = role;
         if (isActive !== undefined) query.isActive = isActive === 'true';
       } else {
         // Other roles can only see users in their building
@@ -903,6 +1047,15 @@ class AuthController {
         .limit(limit)
         .sort({ createdAt: -1 });
 
+      const serializedUsers = users.map(userDoc => {
+        const { roles, activeRole } = AuthController.getRoleContext(userDoc);
+        const userObj = userDoc.toObject({ virtuals: true });
+        userObj.role = activeRole;
+        userObj.roles = roles;
+        userObj.activeRole = activeRole;
+        return userObj;
+      });
+
       // Calculate pagination
       const totalPages = Math.ceil(totalUsers / limit);
       const hasNextPage = page < totalPages;
@@ -912,7 +1065,7 @@ class AuthController {
         success: true,
         message: 'Users retrieved successfully',
         data: {
-          users,
+          users: serializedUsers,
           pagination: {
             currentPage: page,
             totalPages,
@@ -941,7 +1094,7 @@ class AuthController {
   async getUserById(req, res) {
     try {
       const { userId } = req.params;
-      const currentUserRole = req.user.role;
+      const currentUserRole = req.user.activeRole || req.user.role;
       const currentUserBuildingId = req.user.buildingId;
 
       // Find the user
@@ -976,6 +1129,8 @@ class AuthController {
       }
       // SUPER_ADMIN can see any user (no additional checks needed)
 
+      const { roles, activeRole } = AuthController.getRoleContext(user);
+
       res.status(200).json({
         success: true,
         message: 'User retrieved successfully',
@@ -986,7 +1141,9 @@ class AuthController {
             email: user.email,
             phoneNumber: user.phoneNumber,
             username: user.username,
-            role: user.role,
+            role: activeRole,
+            roles,
+            activeRole,
             isActive: user.isActive,
             isVerified: user.isVerified,
             buildingId: user.buildingId,
@@ -1185,7 +1342,7 @@ class AuthController {
     try {
       const { userId } = req.params; // Optional: for admin deleting other users
       const currentUserId = req.user.userId;
-      const currentUserRole = req.user.role;
+      const currentUserRole = req.user.activeRole || req.user.role;
 
       // Determine which user to delete
       let targetUserId;
@@ -1323,6 +1480,8 @@ class AuthController {
       const user = new User(userData);
       await user.save();
 
+      const { roles, activeRole } = AuthController.getRoleContext(user);
+
       res.status(200).json({
         success: true,
         message: 'Step 1 completed. Please proceed to OTP verification.',
@@ -1333,7 +1492,9 @@ class AuthController {
             name: user.name,
             email: user.email,
             phoneNumber: user.phoneNumber,
-            role: user.role
+            role: activeRole,
+            roles,
+            activeRole
           },
           instructions: {
             phoneOTP: "Enter 1234 for phone OTP",
@@ -1392,6 +1553,8 @@ class AuthController {
       user.otpVerification.verifiedAt = new Date();
       await user.save();
 
+      const { roles, activeRole } = AuthController.getRoleContext(user);
+
       // Generate JWT token after OTP verification
       const token = AuthController.generateToken(user);
 
@@ -1405,7 +1568,9 @@ class AuthController {
             name: user.name,
             email: user.email,
             phoneNumber: user.phoneNumber,
-            role: user.role
+            role: activeRole,
+            roles,
+            activeRole
           },
           otpVerification: {
             phoneVerified: true,
@@ -1493,6 +1658,8 @@ class AuthController {
       
       await user.save();
 
+      const { roles, activeRole } = AuthController.getRoleContext(user);
+
       // Populate building details for better UI experience
       await user.populate('buildingId', 'name address');
 
@@ -1510,7 +1677,9 @@ class AuthController {
             name: user.name,
             email: user.email,
             phoneNumber: user.phoneNumber,
-            role: user.role,
+            role: activeRole,
+            roles,
+            activeRole,
             buildingId: user.buildingId,
             building: user.buildingId, // Populated building details
             flatNumber: user.flatNumber,
@@ -1542,12 +1711,12 @@ class AuthController {
    */
   async getPendingResidents(req, res) {
     try {
-      const currentUserRole = req.user.role;
+      const currentUserRole = req.user.activeRole || req.user.role;
       const currentUserBuildingId = req.user.buildingId;
       
       // Build query based on admin role
       let query = {
-        role: 'RESIDENT',
+        roles: 'RESIDENT',
         approvalStatus: 'PENDING',
         isActive: true
       };
@@ -1627,7 +1796,7 @@ class AuthController {
       const { userId } = req.params;
       const { action, notes } = req.body;
       const adminId = req.user.userId;
-      const adminRole = req.user.role;
+      const adminRole = req.user.activeRole || req.user.role;
 
       // Find the resident
       const resident = await User.findById(userId);

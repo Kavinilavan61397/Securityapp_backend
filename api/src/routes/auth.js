@@ -443,13 +443,17 @@ router.get('/profile', authenticateToken, requireVerification(), authController.
  * @desc    Switch active role for multi-role users
  * @access  Private (Authenticated users only)
  */
-router.post(
-  '/switch-role',
-  authenticateToken,
-  requireVerification(),
-  switchRoleValidation,
-  authController.switchRole
-);
+if (typeof authController.switchRole === 'function') {
+  router.post(
+    '/switch-role',
+    authenticateToken,
+    requireVerification(),
+    switchRoleValidation,
+    authController.switchRole
+  );
+} else {
+  console.error('switchRole controller not defined; skipping /api/auth/switch-role route registration');
+}
 
 /**
  * @route   GET /api/auth/users

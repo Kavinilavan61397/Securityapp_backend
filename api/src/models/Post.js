@@ -38,7 +38,7 @@ const postSchema = new mongoose.Schema({
     },
     storage: {
       type: String,
-      enum: ['memory', 'disk'],
+      enum: ['memory', 'disk', 's3'],
       required: false
     },
     data: {
@@ -47,6 +47,19 @@ const postSchema = new mongoose.Schema({
     },
     path: {
       type: String, // File path on disk (for disk storage)
+      required: false
+    },
+    // S3 storage fields
+    s3Url: {
+      type: String, // Public S3 URL
+      required: false
+    },
+    s3Key: {
+      type: String, // S3 object key (path in bucket)
+      required: false
+    },
+    originalName: {
+      type: String, // Original filename before upload
       required: false
     }
   }],
@@ -80,7 +93,10 @@ postSchema.virtual('imageCount').get(function() {
 postSchema.virtual('imageUrls').get(function() {
   if (!this.images || this.images.length === 0) return [];
   return this.images.map(img => {
-    if (img.storage === 'memory' && img.data) {
+    // Priority: S3 URL > base64 data > disk path
+    if (img.storage === 's3' && img.s3Url) {
+      return img.s3Url;
+    } else if (img.storage === 'memory' && img.data) {
       // Memory storage - return base64 data URL
       return `data:${img.mimetype};base64,${img.data}`;
     } else if (img.storage === 'disk' && img.path) {

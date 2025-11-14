@@ -1,6 +1,7 @@
 const Post = require('../models/Post');
 const User = require('../models/User');
 const BlockedUser = require('../models/BlockedUser');
+const { uploadMultipleToS3, isS3Configured, deleteFromS3 } = require('../services/s3Service');
 
 // Create a new post
 const createPost = async (req, res) => {
@@ -27,31 +28,76 @@ const createPost = async (req, res) => {
       });
     }
 
-    // Handle uploaded images (environment-aware)
+    // Handle uploaded images - prioritize S3 if configured, otherwise fallback to existing methods
     let imageData = [];
     if (req.files && req.files.length > 0) {
-      imageData = req.files.map(file => {
-        // Check if file is from memory storage (serverless) or disk storage (traditional)
-        if (file.buffer) {
-          // Memory storage (Vercel/AWS Lambda)
-          return {
-            filename: file.originalname,
-            mimetype: file.mimetype,
-            size: file.size,
-            data: file.buffer.toString('base64'),
-            storage: 'memory'
-          };
-        } else {
-          // Disk storage (traditional servers)
-          return {
-            filename: file.originalname,
-            mimetype: file.mimetype,
-            size: file.size,
-            path: file.path, // File path on disk
-            storage: 'disk'
-          };
+      // Check if S3 is configured
+      if (isS3Configured()) {
+        try {
+          // Upload to S3
+          const s3Results = await uploadMultipleToS3(req.files, 'posts');
+          
+          // Map S3 results to image data format
+          imageData = req.files.map((file, index) => {
+            const s3Result = s3Results[index];
+            return {
+              filename: s3Result.fileName,
+              mimetype: file.mimetype,
+              size: file.size,
+              storage: 's3',
+              s3Url: s3Result.url,
+              s3Key: s3Result.key,
+              originalName: s3Result.originalName
+            };
+          });
+        } catch (s3Error) {
+          console.error('S3 upload failed, falling back to local storage:', s3Error);
+          // Fallback to existing method if S3 fails
+          imageData = req.files.map(file => {
+            if (file.buffer) {
+              return {
+                filename: file.originalname,
+                mimetype: file.mimetype,
+                size: file.size,
+                data: file.buffer.toString('base64'),
+                storage: 'memory'
+              };
+            } else {
+              return {
+                filename: file.originalname,
+                mimetype: file.mimetype,
+                size: file.size,
+                path: file.path,
+                storage: 'disk'
+              };
+            }
+          });
         }
-      });
+      } else {
+        // S3 not configured, use existing method
+        imageData = req.files.map(file => {
+          // Check if file is from memory storage (serverless) or disk storage (traditional)
+          if (file.buffer) {
+            // Memory storage (Vercel/AWS Lambda)
+            return {
+              filename: file.originalname,
+              mimetype: file.mimetype,
+              size: file.size,
+              data: file.buffer.toString('base64'),
+              storage: 'memory'
+            };
+          } else {
+            // Disk storage (traditional servers)
+            return {
+              filename: file.originalname,
+              mimetype: file.mimetype,
+              size: file.size,
+              path: file.path, // File path on disk
+              storage: 'disk'
+            };
+          }
+        });
+      }
     }
 
     // Create new post
@@ -168,21 +214,37 @@ const getAllPosts = async (req, res) => {
       });
     }
 
-    // Process posts to exclude large image data that could crash frontend
+    // Process posts to return image URLs (S3 URLs preferred, fallback to metadata)
     const processedPosts = posts.map(post => {
       const processedPost = { ...post };
       
-      // Remove base64 image data to prevent frontend crashes
+      // Process images to return URLs or metadata
       if (processedPost.images && processedPost.images.length > 0) {
-        processedPost.images = processedPost.images.map(img => ({
-          filename: img.filename,
-          mimetype: img.mimetype,
-          size: img.size,
-          storage: img.storage,
-          // Exclude large base64 data
-          hasData: !!img.data,
-          dataSize: img.data ? img.data.length : 0
-        }));
+        processedPost.images = processedPost.images.map(img => {
+          // If S3 storage, return the S3 URL
+          if (img.storage === 's3' && img.s3Url) {
+            return {
+              filename: img.filename,
+              mimetype: img.mimetype,
+              size: img.size,
+              storage: img.storage,
+              url: img.s3Url, // Public S3 URL for frontend
+              s3Key: img.s3Key,
+              originalName: img.originalName
+            };
+          }
+          // For memory/disk storage, exclude base64 data but include metadata
+          return {
+            filename: img.filename,
+            mimetype: img.mimetype,
+            size: img.size,
+            storage: img.storage,
+            // Exclude large base64 data
+            hasData: !!img.data,
+            dataSize: img.data ? img.data.length : 0,
+            path: img.path // Include path for disk storage
+          };
+        });
       }
       
       return processedPost;
@@ -291,15 +353,27 @@ const deletePost = async (req, res) => {
     // Handle file deletion based on storage type
     if (post.images && post.images.length > 0) {
       const fs = require('fs');
-      post.images.forEach(img => {
-        if (img.storage === 'disk' && img.path) {
+      
+      // Delete files from their respective storage locations
+      for (const img of post.images) {
+        if (img.storage === 's3' && img.s3Key) {
+          // Delete from S3
+          try {
+            await deleteFromS3(img.s3Key);
+            console.log(`✅ Deleted S3 object: ${img.s3Key}`);
+          } catch (s3Error) {
+            console.error(`❌ Failed to delete S3 object ${img.s3Key}:`, s3Error);
+            // Continue deletion even if S3 delete fails
+          }
+        } else if (img.storage === 'disk' && img.path) {
           // Delete file from disk (traditional servers only)
           if (fs.existsSync(img.path)) {
             fs.unlinkSync(img.path);
+            console.log(`✅ Deleted disk file: ${img.path}`);
           }
         }
         // Memory storage files are automatically removed when post is deleted from database
-      });
+      }
     }
 
     // Delete the post
@@ -416,10 +490,34 @@ const getPostImages = async (req, res) => {
       });
     }
 
-    // Return only image data for this specific post
+    // Process images to return URLs (S3 URLs preferred)
+    const processedImages = (post.images || []).map(img => {
+      // If S3 storage, return the S3 URL
+      if (img.storage === 's3' && img.s3Url) {
+        return {
+          filename: img.filename,
+          mimetype: img.mimetype,
+          size: img.size,
+          storage: img.storage,
+          url: img.s3Url, // Public S3 URL for frontend
+          s3Key: img.s3Key,
+          originalName: img.originalName
+        };
+      }
+      // For memory/disk storage, return full data (this endpoint is for individual post images)
+      return {
+        filename: img.filename,
+        mimetype: img.mimetype,
+        size: img.size,
+        storage: img.storage,
+        data: img.data, // Include base64 for memory storage
+        path: img.path // Include path for disk storage
+      };
+    });
+
     res.status(200).json({
       success: true,
-      images: post.images || []
+      images: processedImages
     });
 
   } catch (error) {

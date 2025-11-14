@@ -19,24 +19,30 @@ const buildingSchema = new mongoose.Schema({
   address: {
     street: {
       type: String,
-      required: [true, 'Street address is required'],
+      required: false,
       trim: true
     },
     city: {
       type: String,
-      required: [true, 'City is required'],
+      required: false,
       trim: true
     },
     state: {
       type: String,
-      required: [true, 'State is required'],
+      required: false,
       trim: true
     },
     pincode: {
       type: String,
-      required: [true, 'Pincode is required'],
+      required: false,
       trim: true,
-      match: [/^\d{6}$/, 'Pincode must be 6 digits']
+      validate: {
+        validator: function(v) {
+          // Only validate if pincode is provided
+          return !v || /^\d{6}$/.test(v);
+        },
+        message: 'Pincode must be 6 digits'
+      }
     },
     country: {
       type: String,
@@ -89,16 +95,22 @@ const buildingSchema = new mongoose.Schema({
   // Contact Information
   contactPhone: {
     type: String,
-    required: [true, 'Contact phone is required'],
+    required: false,
     trim: true
   },
   
   contactEmail: {
     type: String,
-    required: [true, 'Contact email is required'],
+    required: false,
     lowercase: true,
     trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    validate: {
+      validator: function(v) {
+        // Only validate if email is provided
+        return !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
+      },
+      message: 'Please enter a valid email'
+    }
   },
   
   // Building Features
@@ -163,8 +175,14 @@ buildingSchema.index({ isActive: 1 });
 
 // Virtual for full address
 buildingSchema.virtual('fullAddress').get(function() {
-  const addr = this.address;
-  return `${addr.street}, ${addr.city}, ${addr.state} - ${addr.pincode}, ${addr.country}`;
+  const addr = this.address || {};
+  const parts = [];
+  if (addr.street) parts.push(addr.street);
+  if (addr.city) parts.push(addr.city);
+  if (addr.state) parts.push(addr.state);
+  if (addr.pincode) parts.push(addr.pincode);
+  if (addr.country) parts.push(addr.country);
+  return parts.length > 0 ? parts.join(', ') : 'Address not provided';
 });
 
 // Virtual for building status

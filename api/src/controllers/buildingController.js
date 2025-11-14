@@ -48,18 +48,20 @@ class BuildingController {
       // Create new building
       const building = new Building({
         name,
-        address: {
-          street: address.street,
-          city: address.city,
-          state: address.state,
-          pincode: address.pincode,
+        address: address ? {
+          street: address.street || undefined,
+          city: address.city || undefined,
+          state: address.state || undefined,
+          pincode: address.pincode || undefined,
           country: address.country || 'India'
+        } : {
+          country: 'India'
         },
         totalFloors: totalFloors || 1,
         totalFlats: totalFlats || 1,
         image: image || null,
-        contactPhone,
-        contactEmail,
+        contactPhone: contactPhone || undefined,
+        contactEmail: contactEmail || undefined,
         features: features || [],
         operatingHours: operatingHours || {
           open: '06:00',

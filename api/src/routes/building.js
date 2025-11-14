@@ -18,21 +18,25 @@ const validateBuildingCreation = [
     .withMessage('Building name must be between 2 and 100 characters'),
   
   body('address.street')
+    .optional()
     .trim()
     .isLength({ min: 5, max: 200 })
     .withMessage('Street address must be between 5 and 200 characters'),
   
   body('address.city')
+    .optional()
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('City must be between 2 and 50 characters'),
   
   body('address.state')
+    .optional()
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage('State must be between 2 and 50 characters'),
   
   body('address.pincode')
+    .optional()
     .trim()
     .isLength({ min: 6, max: 10 })
     .withMessage('Pincode must be between 6 and 10 characters'),
@@ -48,11 +52,13 @@ const validateBuildingCreation = [
     .withMessage('Total flats must be between 1 and 10000'),
   
   body('contactPhone')
+    .optional()
     .trim()
     .matches(/^\+?[1-9]\d{1,14}$/)
     .withMessage('Contact phone must be a valid international phone number'),
   
   body('contactEmail')
+    .optional()
     .trim()
     .isEmail()
     .normalizeEmail()

@@ -112,7 +112,10 @@ const updateUserProfile = async (req, res) => {
       city,
       pincode,
       flatNumber,
-      tenantType
+      tenantType,
+      area,
+      blockNumber,
+      societyName
     } = req.body;
     
     // Build update object
@@ -127,6 +130,9 @@ const updateUserProfile = async (req, res) => {
     if (pincode !== undefined) updateData.pincode = pincode;
     if (flatNumber !== undefined) updateData.flatNumber = flatNumber;
     if (tenantType !== undefined) updateData.tenantType = tenantType;
+    if (area !== undefined) updateData.area = area;
+    if (blockNumber !== undefined) updateData.blockNumber = blockNumber;
+    if (societyName !== undefined) updateData.societyName = societyName;
     
     const user = await User.findByIdAndUpdate(
       userId,

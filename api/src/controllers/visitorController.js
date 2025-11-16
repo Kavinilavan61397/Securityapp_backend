@@ -3,6 +3,7 @@ const Visit = require('../models/Visit');
 const Photo = require('../models/Photo');
 const Notification = require('../models/Notification');
 const { validationResult } = require('express-validator');
+const { uploadToS3, isS3Configured } = require('../services/s3Service');
 
 class VisitorController {
   // Create a new visitor
@@ -407,6 +408,109 @@ class VisitorController {
       res.status(500).json({
         success: false,
         message: 'Internal server error',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Upload visitor face & ID proof photos to S3
+   */
+  static async uploadVisitorPhotos(req, res) {
+    try {
+      if (!isS3Configured()) {
+        return res.status(503).json({
+          success: false,
+          message: 'File upload service is not configured'
+        });
+      }
+
+      const { buildingId, visitorId } = req.params;
+
+      if (req.user.role !== 'SUPER_ADMIN' && req.user.buildingId.toString() !== buildingId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied to this building'
+        });
+      }
+
+      const visitor = await Visitor.findById(visitorId);
+      if (!visitor) {
+        return res.status(404).json({
+          success: false,
+          message: 'Visitor not found'
+        });
+      }
+
+      const visitorBuildingId = visitor.buildingId?._id
+        ? visitor.buildingId._id.toString()
+        : visitor.buildingId.toString();
+
+      if (visitorBuildingId !== buildingId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Visitor does not belong to this building'
+        });
+      }
+
+      const faceFile = req.files?.facePhoto?.[0];
+      const proofFile = req.files?.idPhoto?.[0];
+
+      if (!faceFile || !proofFile) {
+        return res.status(400).json({
+          success: false,
+          message: 'Both facePhoto and idPhoto are required'
+        });
+      }
+
+      const folderBase = `visitors/${visitorId}`;
+
+      const [faceUpload, proofUpload] = await Promise.all([
+        uploadToS3(
+          faceFile.buffer,
+          faceFile.originalname || 'face.jpg',
+          `${folderBase}/face`,
+          faceFile.mimetype
+        ),
+        uploadToS3(
+          proofFile.buffer,
+          proofFile.originalname || 'id.jpg',
+          `${folderBase}/id`,
+          proofFile.mimetype
+        )
+      ]);
+
+      const now = new Date();
+
+      visitor.faceId = {
+        key: faceUpload.key,
+        url: faceUpload.url,
+        uploadedAt: now
+      };
+
+      visitor.proofId = {
+        key: proofUpload.key,
+        url: proofUpload.url,
+        uploadedAt: now
+      };
+
+      await visitor.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Visitor photos uploaded successfully',
+        data: {
+          visitorId: visitor._id,
+          faceId: visitor.faceId,
+          proofId: visitor.proofId
+        }
+      });
+
+    } catch (error) {
+      console.error('Error uploading visitor photos:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to upload visitor photos',
         error: error.message
       });
     }

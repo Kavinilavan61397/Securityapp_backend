@@ -1,5 +1,6 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
+const multer = require('multer');
 const VisitorController = require('../controllers/visitorController');
 const { authenticateToken, authorizeRoles, buildingAccess } = require('../middleware/auth');
 
@@ -287,6 +288,47 @@ const validateQuery = [
     .withMessage('End date must be a valid ISO date')
 ];
 
+// Visitor photo upload (face + ID proof)
+const visitorPhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype && file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      const error = new Error('Only image files are allowed');
+      error.code = 'UNSUPPORTED_FILE_TYPE';
+      cb(error);
+    }
+  }
+});
+
+const applyVisitorPhotoUpload = (req, res, next) => {
+  visitorPhotoUpload.fields([
+    { name: 'facePhoto', maxCount: 1 },
+    { name: 'idPhoto', maxCount: 1 }
+  ])(req, res, (err) => {
+    if (err) {
+      let message = 'Failed to upload visitor photos';
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        message = 'Each photo must be 5MB or smaller';
+      } else if (err.code === 'UNSUPPORTED_FILE_TYPE') {
+        message = 'Only image files are allowed';
+      } else if (err.message) {
+        message = err.message;
+      }
+
+      return res.status(400).json({
+        success: false,
+        message
+      });
+    }
+    next();
+  });
+};
+
 // Routes
 
 // POST /api/visitors/:buildingId - Create a new visitor
@@ -308,6 +350,13 @@ router.get('/:buildingId/stats',
 );
 
 // Photo upload functionality removed - will be implemented separately
+router.post('/:buildingId/:visitorId/photos',
+  validateParams,
+  buildingAccess,
+  authorizeRoles(['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT']),
+  applyVisitorPhotoUpload,
+  VisitorController.uploadVisitorPhotos
+);
 
 // GET /api/visitors/:buildingId/search - Search visitors (MUST come before :buildingId route)
 router.get('/:buildingId/search',

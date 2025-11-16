@@ -55,6 +55,18 @@ const visitorSchema = new mongoose.Schema({
     required: false // Changed from true to false - photo is optional
   },
   
+  // Visitor capture photos stored in S3
+  faceId: {
+    key: { type: String },
+    url: { type: String },
+    uploadedAt: { type: Date }
+  },
+  proofId: {
+    key: { type: String },
+    url: { type: String },
+    uploadedAt: { type: Date }
+  },
+  
   // Building Association
   buildingId: {
     type: mongoose.Schema.Types.ObjectId,

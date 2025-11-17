@@ -45,6 +45,17 @@ const createPost = async (req, res) => {
     // Handle both req.files (array) and req.file (single) for compatibility
     const files = req.files || (req.file ? [req.file] : []);
     
+    console.log('Files received by controller:', files.length);
+    if (files.length > 0) {
+      console.log('File details:', files.map(f => ({
+        fieldname: f.fieldname,
+        originalname: f.originalname,
+        mimetype: f.mimetype,
+        size: f.size,
+        hasBuffer: !!f.buffer
+      })));
+    }
+    
     if (files && files.length > 0) {
       // Check if S3 is configured
       if (isS3Configured()) {
@@ -52,15 +63,29 @@ const createPost = async (req, res) => {
           // Upload to S3
           console.log('Attempting S3 upload for', files.length, 'files');
           const s3Results = await uploadMultipleToS3(files, 'posts');
-          console.log('S3 upload successful:', s3Results.length, 'files uploaded');
+          console.log('S3 upload successful:', s3Results.length, 'out of', files.length, 'files uploaded');
           
           // Map S3 results to image data format
-          imageData = files.map((file, index) => {
-            const s3Result = s3Results[index];
-            if (!s3Result) {
-              console.error('Missing S3 result for file index:', index);
+          // Match by originalName since s3Results only contains successful uploads
+          imageData = s3Results.map((s3Result) => {
+            // Find the corresponding file by originalName (case-insensitive, handle path differences)
+            const file = files.find(f => {
+              const fileOriginalName = (f.originalname || f.filename || '').toLowerCase();
+              const s3OriginalName = (s3Result.originalName || '').toLowerCase();
+              // Match by name (handle cases where path might be included)
+              return fileOriginalName === s3OriginalName || 
+                     fileOriginalName.endsWith(s3OriginalName) ||
+                     s3OriginalName.endsWith(fileOriginalName);
+            });
+            
+            if (!file) {
+              console.error('Could not find matching file for S3 result:', {
+                s3OriginalName: s3Result.originalName,
+                availableFiles: files.map(f => f.originalname || f.filename)
+              });
               return null;
             }
+            
             return {
               filename: s3Result.fileName,
               mimetype: file.mimetype,
@@ -71,6 +96,10 @@ const createPost = async (req, res) => {
               originalName: s3Result.originalName
             };
           }).filter(Boolean); // Remove any null entries
+          
+          if (imageData.length < files.length) {
+            console.warn(`Warning: Only ${imageData.length} out of ${files.length} images were successfully uploaded`);
+          }
           
           console.log('Image data prepared:', imageData.length, 'images');
         } catch (s3Error) {

@@ -1,0 +1,36 @@
+name: CI/CD Deploy backend to EC2 (Self Hosted)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted  # EC2 GitHub Runner
+
+    steps:
+      # 1️⃣ Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'     # Or your version
+          check-latest: true
+
+      # 3️⃣ Install Dependencies
+      - name: Install Dependencies
+        working-directory: api
+        run: |
+          npm install --production
+
+      # 4️⃣ Restart PM2 App
+      - name: Restart PM2 App
+        working-directory: api
+        run: |
+          pm2 stop security-backend || true
+          pm2 delete security-backend || true
+          pm2 start server.js --name security-backend
+          pm2 save

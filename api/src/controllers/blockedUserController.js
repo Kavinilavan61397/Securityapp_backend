@@ -229,14 +229,30 @@ const blockPost = async (req, res) => {
       });
     }
 
-    // Check if already blocked
-    const existingBlock = await BlockedUser.findOne({
+    // Check if the post author is already blocked (USER type)
+    const existingUserBlock = await BlockedUser.findOne({
       blockerId,
-      blockedPostId: postId,
-      buildingId
+      blockedUserId: post.author._id || post.author,
+      buildingId,
+      blockType: 'USER'
     });
 
-    if (existingBlock) {
+    if (existingUserBlock) {
+      return res.status(400).json({
+        success: false,
+        message: 'This user is already blocked. All their posts are already hidden.'
+      });
+    }
+
+    // Check if this specific post is already blocked
+    const existingPostBlock = await BlockedUser.findOne({
+      blockerId,
+      blockedPostId: postId,
+      buildingId,
+      blockType: 'POST'
+    });
+
+    if (existingPostBlock) {
       return res.status(400).json({
         success: false,
         message: 'Post is already blocked'
@@ -244,10 +260,10 @@ const blockPost = async (req, res) => {
     }
 
     // Create the block relationship for specific post
+    // Don't set blockedUserId to avoid unique index conflicts
     const blockedUser = new BlockedUser({
       blockerId,
-      blockedUserId: post.author._id,
-      blockedPostId: postId, // Add specific post ID
+      blockedPostId: postId,
       buildingId,
       blockType: 'POST'
     });

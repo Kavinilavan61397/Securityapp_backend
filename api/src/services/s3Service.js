@@ -79,17 +79,44 @@ const uploadToS3 = async (fileBuffer, fileName, folder, mimeType) => {
  */
 const uploadMultipleToS3 = async (files, folder) => {
   try {
-    const uploadPromises = files.map(file => {
+    const uploadPromises = files.map((file, index) => {
       const fileBuffer = file.buffer || Buffer.from(file.data, 'base64');
       return uploadToS3(
         fileBuffer,
         file.originalname || file.filename,
         folder,
         file.mimetype
-      );
+      ).catch(error => {
+        // Log individual file failures but don't throw
+        console.error(`S3 upload failed for file ${index} (${file.originalname || file.filename}):`, error.message);
+        return { error: error.message, fileName: file.originalname || file.filename, index };
+      });
     });
 
-    return await Promise.all(uploadPromises);
+    const results = await Promise.allSettled(uploadPromises);
+    
+    // Separate successful and failed uploads
+    const successful = [];
+    const failed = [];
+    
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && !result.value.error) {
+        successful.push(result.value);
+      } else {
+        const error = result.status === 'rejected' ? result.reason : result.value.error;
+        failed.push({ index, fileName: files[index].originalname || files[index].filename, error });
+      }
+    });
+    
+    if (failed.length > 0) {
+      console.warn(`${failed.length} file(s) failed to upload:`, failed);
+    }
+    
+    if (successful.length === 0) {
+      throw new Error('All file uploads failed');
+    }
+    
+    return successful;
   } catch (error) {
     console.error('S3 Multiple Upload Error:', error);
     throw error;

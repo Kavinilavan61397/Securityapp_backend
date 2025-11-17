@@ -30,16 +30,37 @@ const createPost = async (req, res) => {
 
     // Handle uploaded images - prioritize S3 if configured, otherwise fallback to existing methods
     let imageData = [];
-    if (req.files && req.files.length > 0) {
+    
+    // Debug: Log file upload info
+    console.log('File upload debug:', {
+      hasFiles: !!req.files,
+      filesLength: req.files?.length || 0,
+      hasFile: !!req.file,
+      filesKeys: req.files ? Object.keys(req.files) : [],
+      bodyKeys: Object.keys(req.body || {}),
+      contentType: req.headers['content-type'],
+      rawFiles: req.files ? req.files.map(f => ({ fieldname: f.fieldname, originalname: f.originalname, mimetype: f.mimetype })) : []
+    });
+    
+    // Handle both req.files (array) and req.file (single) for compatibility
+    const files = req.files || (req.file ? [req.file] : []);
+    
+    if (files && files.length > 0) {
       // Check if S3 is configured
       if (isS3Configured()) {
         try {
           // Upload to S3
-          const s3Results = await uploadMultipleToS3(req.files, 'posts');
+          console.log('Attempting S3 upload for', files.length, 'files');
+          const s3Results = await uploadMultipleToS3(files, 'posts');
+          console.log('S3 upload successful:', s3Results.length, 'files uploaded');
           
           // Map S3 results to image data format
-          imageData = req.files.map((file, index) => {
+          imageData = files.map((file, index) => {
             const s3Result = s3Results[index];
+            if (!s3Result) {
+              console.error('Missing S3 result for file index:', index);
+              return null;
+            }
             return {
               filename: s3Result.fileName,
               mimetype: file.mimetype,
@@ -49,11 +70,18 @@ const createPost = async (req, res) => {
               s3Key: s3Result.key,
               originalName: s3Result.originalName
             };
-          });
+          }).filter(Boolean); // Remove any null entries
+          
+          console.log('Image data prepared:', imageData.length, 'images');
         } catch (s3Error) {
           console.error('S3 upload failed, falling back to local storage:', s3Error);
+          console.error('S3 error details:', {
+            message: s3Error.message,
+            stack: s3Error.stack,
+            name: s3Error.name
+          });
           // Fallback to existing method if S3 fails
-          imageData = req.files.map(file => {
+          imageData = files.map(file => {
             if (file.buffer) {
               return {
                 filename: file.originalname,
@@ -75,7 +103,7 @@ const createPost = async (req, res) => {
         }
       } else {
         // S3 not configured, use existing method
-        imageData = req.files.map(file => {
+        imageData = files.map(file => {
           // Check if file is from memory storage (serverless) or disk storage (traditional)
           if (file.buffer) {
             // Memory storage (Vercel/AWS Lambda)

@@ -306,16 +306,55 @@ const visitorPhotoUpload = multer({
 });
 
 const applyVisitorPhotoUpload = (req, res, next) => {
+  // Log all incoming fields before multer processes them
+  console.log('Incoming request fields (before multer):', {
+    contentType: req.headers['content-type'],
+    bodyKeys: Object.keys(req.body || {}),
+    hasFiles: !!req.files
+  });
+
   visitorPhotoUpload.fields([
     { name: 'facePhoto', maxCount: 1 },
     { name: 'idPhoto', maxCount: 1 }
   ])(req, res, (err) => {
     if (err) {
+      // Handle LIMIT_UNEXPECTED_FILE more gracefully
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        // Check if we still have the required files despite the unexpected field
+        const hasFacePhoto = req.files && req.files.facePhoto && req.files.facePhoto.length > 0;
+        const hasIdPhoto = req.files && req.files.idPhoto && req.files.idPhoto.length > 0;
+        
+        if (hasFacePhoto && hasIdPhoto) {
+          // We have the required files, just log a warning and continue
+          console.warn('Unexpected field detected but required files present:', {
+            unexpectedField: err.field,
+            facePhoto: req.files.facePhoto[0].originalname,
+            idPhoto: req.files.idPhoto[0].originalname
+          });
+          return next(); // Continue despite unexpected field
+        } else {
+          // Missing required files, return error
+          const unexpectedField = err.field || 'unknown';
+          const missing = [];
+          if (!hasFacePhoto) missing.push('facePhoto');
+          if (!hasIdPhoto) missing.push('idPhoto');
+          
+          return res.status(400).json({
+            success: false,
+            message: `Unexpected field: "${unexpectedField}". Missing required fields: ${missing.join(', ')}`,
+            error: {
+              unexpectedField: err.field,
+              missingFields: missing,
+              expectedFields: ['facePhoto', 'idPhoto']
+            }
+          });
+        }
+      }
+      
+      // Handle other errors
       let message = 'Failed to upload visitor photos';
       if (err.code === 'LIMIT_FILE_SIZE') {
         message = 'Each photo must be 5MB or smaller';
-      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-        message = 'Unexpected field. Please use only "facePhoto" and "idPhoto" fields';
       } else if (err.code === 'UNSUPPORTED_FILE_TYPE') {
         message = 'Only image files are allowed';
       } else if (err.message) {
@@ -333,6 +372,16 @@ const applyVisitorPhotoUpload = (req, res, next) => {
         message
       });
     }
+    
+    // Log successful file reception
+    if (req.files) {
+      console.log('Files received successfully:', {
+        facePhoto: req.files.facePhoto ? req.files.facePhoto.map(f => f.originalname) : 'missing',
+        idPhoto: req.files.idPhoto ? req.files.idPhoto.map(f => f.originalname) : 'missing',
+        allFields: Object.keys(req.files)
+      });
+    }
+    
     next();
   });
 };

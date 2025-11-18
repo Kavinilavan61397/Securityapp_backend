@@ -314,11 +314,19 @@ const applyVisitorPhotoUpload = (req, res, next) => {
       let message = 'Failed to upload visitor photos';
       if (err.code === 'LIMIT_FILE_SIZE') {
         message = 'Each photo must be 5MB or smaller';
+      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        message = 'Unexpected field. Please use only "facePhoto" and "idPhoto" fields';
       } else if (err.code === 'UNSUPPORTED_FILE_TYPE') {
         message = 'Only image files are allowed';
       } else if (err.message) {
         message = err.message;
       }
+
+      console.error('Visitor photo upload error:', {
+        code: err.code,
+        message: err.message,
+        field: err.field
+      });
 
       return res.status(400).json({
         success: false,

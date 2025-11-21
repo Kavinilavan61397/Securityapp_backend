@@ -241,6 +241,13 @@ const userSchema = new mongoose.Schema({
     default: null
   },
   
+  // Profile Picture stored in S3
+  profilePictureS3: {
+    key: { type: String },
+    url: { type: String },
+    uploadedAt: { type: Date }
+  },
+  
   // Date of Birth (from Figma design)
   dateOfBirth: {
     type: Date,
@@ -378,6 +385,12 @@ userSchema.virtual('calculatedAge').get(function() {
   if (!this.dateOfBirth) return null;
   const today = new Date();
   const birthDate = new Date(this.dateOfBirth);
+  
+  // Validate that birthDate is a valid date
+  if (isNaN(birthDate.getTime())) {
+    return null; // Return null instead of NaN for invalid dates
+  }
+  
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
   
@@ -385,7 +398,8 @@ userSchema.virtual('calculatedAge').get(function() {
     age--;
   }
   
-  return age;
+  // Ensure age is a valid number (shouldn't happen, but safety check)
+  return isNaN(age) || !isFinite(age) ? null : age;
 });
 
 // Virtual for verification status (backward compatibility)
@@ -442,7 +456,11 @@ userSchema.pre('save', async function(next) {
 
   // Calculate age from dateOfBirth if not provided
   if (this.dateOfBirth && !this.age) {
-    this.age = this.calculatedAge;
+    const calculatedAge = this.calculatedAge;
+    // Only set age if calculatedAge is a valid number (not NaN or null)
+    if (calculatedAge !== null && !isNaN(calculatedAge) && isFinite(calculatedAge)) {
+      this.age = calculatedAge;
+    }
   }
   
   // Hash password if it has been modified

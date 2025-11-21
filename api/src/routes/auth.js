@@ -1,9 +1,27 @@
 const express = require('express');
 const { body, param } = require('express-validator');
+const multer = require('multer');
 const authController = require('../controllers/authController');
 const { authenticateToken, requireVerification, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Multer configuration for profile picture uploads (S3)
+const profilePictureUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype && file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      const error = new Error('Only image files are allowed');
+      error.code = 'UNSUPPORTED_FILE_TYPE';
+      cb(error, false);
+    }
+  }
+});
 
 /**
  * Authentication Routes
@@ -481,10 +499,16 @@ router.get('/users/:userId',
 
 /**
  * @route   PUT /api/auth/profile
- * @desc    Update current user profile
+ * @desc    Update current user profile (supports file upload for profile picture)
  * @access  Private (Authenticated users only)
  */
-router.put('/profile', authenticateToken, requireVerification(), profileUpdateValidation, authController.updateProfile);
+router.put('/profile', 
+  authenticateToken, 
+  requireVerification(), 
+  profilePictureUpload.single('profilePicture'), // Accept optional file upload
+  profileUpdateValidation, 
+  authController.updateProfile
+);
 
 /**
  * @route   POST /api/auth/logout

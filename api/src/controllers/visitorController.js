@@ -144,6 +144,17 @@ class VisitorController {
       const totalVisitors = await Visitor.countDocuments({ buildingId, isActive: true });
       const visitors = await Visitor.findByBuilding(buildingId, { skip, limit, isActive: true, sort: { createdAt: -1 } });
 
+      // Ensure faceId and proofId are always included in response (even if null)
+      // Convert Mongoose documents to plain objects and ensure photo fields are present
+      const visitorsWithPhotos = visitors.map(visitor => {
+        const visitorObj = visitor.toObject ? visitor.toObject() : visitor;
+        return {
+          ...visitorObj,
+          faceId: visitorObj.faceId || null,
+          proofId: visitorObj.proofId || null
+        };
+      });
+
       // Calculate pagination
       const totalPages = Math.ceil(totalVisitors / limit);
       const hasNextPage = page < totalPages;
@@ -154,7 +165,7 @@ class VisitorController {
         success: true,
         message: 'Visitors retrieved successfully',
         data: {
-          visitors,
+          visitors: visitorsWithPhotos,
           pagination: {
             currentPage: page,
             totalPages,
@@ -215,11 +226,19 @@ class VisitorController {
       // Get visitor's visit history
       const visits = await Visit.findByVisitor(visitorId, buildingId);
 
+      // Ensure faceId and proofId are always included in response (even if null)
+      const visitorObj = visitor.toObject ? visitor.toObject() : visitor;
+      const visitorWithPhotos = {
+        ...visitorObj,
+        faceId: visitorObj.faceId || null,
+        proofId: visitorObj.proofId || null
+      };
+
       res.json({
         success: true,
         message: 'Visitor retrieved successfully',
         data: {
-          visitor,
+          visitor: visitorWithPhotos,
           visitHistory: visits
         }
       });

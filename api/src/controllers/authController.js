@@ -3,6 +3,7 @@ const Building = require('../models/Building');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const emailService = require('../services/emailService');
+const { uploadToS3, deleteFromS3, isS3Configured } = require('../services/s3Service');
 
 const USER_ROLES = ['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY', 'RESIDENT'];
 
@@ -708,7 +709,7 @@ class AuthController {
   async getProfile(req, res) {
     try {
       const user = await User.findById(req.user.userId)
-        .select('-otp -__v')
+        .select('-otp -__v -password')
         .populate('buildingId', 'name address');
 
       if (!user) {
@@ -723,6 +724,20 @@ class AuthController {
       userData.role = activeRole;
       userData.roles = roles;
       userData.activeRole = activeRole;
+
+      // Ensure profilePictureS3 is always included in response (even if null)
+      let profilePictureS3 = null;
+      if (userData.profilePictureS3 && userData.profilePictureS3.url) {
+        profilePictureS3 = {
+          key: userData.profilePictureS3.key || null,
+          url: userData.profilePictureS3.url,
+          uploadedAt: userData.profilePictureS3.uploadedAt || null
+        };
+      }
+      
+      // Use S3 URL if available, otherwise fall back to legacy profilePicture
+      userData.profilePicture = profilePictureS3?.url || userData.profilePicture || null;
+      userData.profilePictureS3 = profilePictureS3;
 
       res.status(200).json({
         success: true,
@@ -744,10 +759,11 @@ class AuthController {
   /**
    * Update User Profile
    * PUT /api/auth/profile
+   * Supports both JSON data and file upload (multipart/form-data)
    */
   async updateProfile(req, res) {
     try {
-      const { name, age, gender, profilePicture, address, completeAddress, city, pincode } = req.body;
+      const { name, age, gender, profilePicture, address, completeAddress, city, pincode, dateOfBirth } = req.body;
 
       const user = await User.findById(req.user.userId);
       if (!user) {
@@ -757,34 +773,113 @@ class AuthController {
         });
       }
 
+      // Handle profile picture file upload to S3
+      if (req.file) {
+        // Check if S3 is configured
+        if (!isS3Configured()) {
+          return res.status(500).json({
+            success: false,
+            message: 'File upload service is not configured'
+          });
+        }
+
+        try {
+          // Delete old S3 image if it exists
+          if (user.profilePictureS3 && user.profilePictureS3.key) {
+            try {
+              await deleteFromS3(user.profilePictureS3.key);
+            } catch (deleteError) {
+              console.warn('Failed to delete old profile picture from S3:', deleteError.message);
+              // Continue even if deletion fails
+            }
+          }
+
+          // Upload new image to S3
+          const folderBase = `profiles/${user._id}`;
+          const s3Result = await uploadToS3(
+            req.file.buffer,
+            req.file.originalname,
+            folderBase,
+            req.file.mimetype
+          );
+
+          // Store S3 metadata in user model
+          const now = new Date();
+          user.profilePictureS3 = {
+            key: s3Result.key,
+            url: s3Result.url,
+            uploadedAt: now
+          };
+
+          // Also update legacy profilePicture field with S3 URL for backward compatibility
+          user.profilePicture = s3Result.url;
+
+        } catch (s3Error) {
+          console.error('S3 upload error:', s3Error);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to upload profile picture',
+            error: process.env.NODE_ENV === 'development' ? s3Error.message : 'Upload failed'
+          });
+        }
+      }
+
+      // Handle dateOfBirth conversion if provided
+      let formattedDateOfBirth;
+      if (dateOfBirth) {
+        if (dateOfBirth.includes('/')) {
+          // Handle dd/mm/yyyy format
+          const [day, month, year] = dateOfBirth.split('/');
+          formattedDateOfBirth = new Date(year, month - 1, day);
+        } else {
+          // Handle ISO8601 or yyyy-mm-dd format
+          formattedDateOfBirth = new Date(dateOfBirth);
+        }
+      }
+
       // Update allowed fields
-      if (name) user.name = name;
-      if (age) user.age = age;
-      if (gender) user.gender = gender;
-      if (profilePicture) user.profilePicture = profilePicture;
-      if (address) user.address = address;
-      if (completeAddress) user.completeAddress = completeAddress;
-      if (city) user.city = city;
-      if (pincode) user.pincode = pincode;
+      if (name !== undefined) user.name = name;
+      if (age !== undefined) user.age = age;
+      if (gender !== undefined) user.gender = gender;
+      if (dateOfBirth !== undefined) user.dateOfBirth = formattedDateOfBirth;
+      if (address !== undefined) user.address = address;
+      if (completeAddress !== undefined) user.completeAddress = completeAddress;
+      if (city !== undefined) user.city = city;
+      if (pincode !== undefined) user.pincode = pincode;
+
+      // If profilePicture is provided as URL string (not file), update it
+      if (profilePicture && !req.file) {
+        user.profilePicture = profilePicture;
+      }
 
       await user.save();
 
       const { roles, activeRole } = AuthController.getRoleContext(user);
+      const userData = user.toObject({ virtuals: true });
+      userData.role = activeRole;
+      userData.roles = roles;
+      userData.activeRole = activeRole;
 
       res.status(200).json({
         success: true,
         message: 'Profile updated successfully',
         data: {
           user: {
-            id: user._id,
-            name: user.name,
-            email: user.email,
+            id: userData._id,
+            name: userData.name,
+            email: userData.email,
             role: activeRole,
             roles,
             activeRole,
-            age: user.age,
-            gender: user.gender,
-            profilePicture: user.profilePicture
+            age: userData.age,
+            gender: userData.gender,
+            dateOfBirth: userData.dateOfBirth,
+            profilePicture: userData.profilePictureS3?.url || userData.profilePicture || null,
+            profilePictureS3: userData.profilePictureS3 || null,
+            address: userData.address,
+            completeAddress: userData.completeAddress,
+            city: userData.city,
+            pincode: userData.pincode
           }
         }
       });

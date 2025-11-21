@@ -260,6 +260,7 @@ const blockPost = async (req, res) => {
     }
 
     // Create the block relationship for specific post
+    // Each post block is a SEPARATE document - multiple posts can be blocked simultaneously
     // Don't set blockedUserId to avoid unique index conflicts
     const blockedUser = new BlockedUser({
       blockerId,
@@ -281,6 +282,36 @@ const blockPost = async (req, res) => {
 
   } catch (error) {
     console.error('Error blocking post:', error);
+    
+    // Handle duplicate key error specifically
+    if (error.code === 11000 || error.code === 11001) {
+      const errorMessage = error.message || '';
+      
+      // Check if it's the old index causing the issue
+      if (errorMessage.includes('unique_block_relationship')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Database index conflict. Please contact support to update database indexes.',
+          error: 'Old database index detected. Run the migration script to fix this issue.'
+        });
+      }
+      
+      // Check if it's a duplicate post block
+      if (errorMessage.includes('blockedPostId') || errorMessage.includes('unique_post_block_relationship')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Post is already blocked'
+        });
+      }
+      
+      // Generic duplicate key error
+      return res.status(400).json({
+        success: false,
+        message: 'This item is already blocked',
+        error: 'Duplicate entry detected'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Internal server error',

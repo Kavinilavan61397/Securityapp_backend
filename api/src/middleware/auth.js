@@ -280,7 +280,13 @@ const requireVerification = () => {
         });
       }
 
-      if (!req.user.isVerified) {
+      // Internal staff (SUPER_ADMIN, BUILDING_ADMIN, SECURITY) don't need verification
+      // Only RESIDENTS need verification
+      const userRoles = req.user.roles && req.user.roles.length ? req.user.roles : (req.user.role ? [req.user.role] : []);
+      const internalRoles = ['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY'];
+      const isInternalStaff = userRoles.some(role => internalRoles.includes(role));
+
+      if (!isInternalStaff && !req.user.isVerified) {
         return res.status(403).json({
           success: false,
           message: 'Account verification required. Please verify your account first.'

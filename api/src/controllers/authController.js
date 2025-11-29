@@ -134,6 +134,12 @@ class AuthController {
         }
       }
 
+      // Determine if user should be auto-verified
+      // SUPER_ADMIN, BUILDING_ADMIN, and SECURITY are internal staff - auto-verified
+      // RESIDENTS need manual verification/approval
+      const internalRoles = ['SUPER_ADMIN', 'BUILDING_ADMIN', 'SECURITY'];
+      const shouldAutoVerify = internalRoles.includes(role);
+
       // Create user
       const user = new User({
         name,
@@ -156,17 +162,18 @@ class AuthController {
         address,
         completeAddress,
         pincode,
-        isVerified: role === 'SUPER_ADMIN' ? true : false, // Super admins are auto-verified
+        isVerified: shouldAutoVerify, // Internal staff (admins/security) are auto-verified
+        approvalStatus: shouldAutoVerify ? 'APPROVED' : 'PENDING', // Internal staff auto-approved
         // Enhanced verification system (additive)
         otpVerification: {
-          phoneVerified: phoneOTP === "1234",
-          emailVerified: emailOTP === "1234",
-          verifiedAt: (phoneOTP === "1234" && emailOTP === "1234") ? new Date() : null
+          phoneVerified: phoneOTP === "1234" || shouldAutoVerify, // Auto-verified for internal staff
+          emailVerified: emailOTP === "1234" || shouldAutoVerify, // Auto-verified for internal staff
+          verifiedAt: (phoneOTP === "1234" && emailOTP === "1234") || shouldAutoVerify ? new Date() : null
         },
         verification: {
-          isVerified: role === 'SUPER_ADMIN' ? true : false,
-          verificationLevel: role === 'SUPER_ADMIN' ? 'VERIFIED' : 'PENDING',
-          verificationType: role === 'SUPER_ADMIN' ? 'AUTOMATIC' : 'AUTOMATIC'
+          isVerified: shouldAutoVerify,
+          verificationLevel: shouldAutoVerify ? 'VERIFIED' : 'PENDING',
+          verificationType: shouldAutoVerify ? 'AUTOMATIC' : 'AUTOMATIC'
         }
       });
 

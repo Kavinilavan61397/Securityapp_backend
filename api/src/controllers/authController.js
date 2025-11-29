@@ -732,6 +732,16 @@ class AuthController {
       userData.roles = roles;
       userData.activeRole = activeRole;
 
+      // Rename buildingId.name to buildingId.buildingName in response
+      // Also set societyName to match buildingName
+      if (userData.buildingId && userData.buildingId.name) {
+        const buildingName = userData.buildingId.name;
+        userData.buildingId.buildingName = buildingName;
+        delete userData.buildingId.name;
+        // Set societyName to match buildingName
+        userData.societyName = buildingName;
+      }
+
       // Ensure profilePictureS3 is always included in response (even if null)
       let profilePictureS3 = null;
       if (userData.profilePictureS3 && userData.profilePictureS3.url) {

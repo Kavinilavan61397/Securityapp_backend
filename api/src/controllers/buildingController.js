@@ -237,11 +237,19 @@ class BuildingController {
       }
 
       // Check permissions
-      if (req.user.role === 'BUILDING_ADMIN' && building.adminId.toString() !== req.user._id.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: 'Access denied. You can only update your assigned building.'
-        });
+      // BUILDING_ADMIN can update if:
+      // 1. They are assigned as admin (building.adminId matches), OR
+      // 2. Their buildingId matches this building (even if adminId not set)
+      if (req.user.role === 'BUILDING_ADMIN') {
+        const isAssignedAdmin = building.adminId && building.adminId.toString() === req.user._id.toString();
+        const isBuildingAdmin = req.user.buildingId && req.user.buildingId.toString() === buildingId;
+        
+        if (!isAssignedAdmin && !isBuildingAdmin) {
+          return res.status(403).json({
+            success: false,
+            message: 'Access denied. You can only update your assigned building.'
+          });
+        }
       }
 
       // Update building

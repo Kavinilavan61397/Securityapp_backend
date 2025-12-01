@@ -40,9 +40,8 @@ const validateCreatePass = [
     .withMessage('Name must be between 2 and 100 characters'),
   
   body('email')
+    .optional({ checkFalsy: true }) // Make email optional; allow empty/null
     .trim()
-    .notEmpty()
-    .withMessage('Email address is required')
     .isEmail()
     .withMessage('Please enter a valid email address'),
   

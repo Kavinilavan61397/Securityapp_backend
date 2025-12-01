@@ -19,7 +19,11 @@ class MaintenanceRequestController {
     const { 
       description, 
       location, 
-      flatNumber 
+      flatNumber,
+      accountNumber,
+      ifsc,
+      bankName,
+      branchLocation
     } = req.body;
     const requesterId = req.user.userId; // Fixed: should be userId, not id
 
@@ -83,7 +87,11 @@ class MaintenanceRequestController {
         imageMimeType: imageMimeType,
         imageSize: imageSize,
         location: location || '',
-        flatNumber: flatNumber || requester.flatNumber || ''
+        flatNumber: flatNumber || requester.flatNumber || '',
+        accountNumber: accountNumber || '',
+        ifsc: ifsc || '',
+        bankName: bankName || '',
+        branchLocation: branchLocation || ''
       });
 
       await maintenanceRequest.save();
@@ -105,6 +113,10 @@ class MaintenanceRequestController {
             status: maintenanceRequest.status,
             location: maintenanceRequest.location,
             flatNumber: maintenanceRequest.flatNumber,
+            accountNumber: maintenanceRequest.accountNumber,
+            ifsc: maintenanceRequest.ifsc,
+            bankName: maintenanceRequest.bankName,
+            branchLocation: maintenanceRequest.branchLocation,
             imageUrl: maintenanceRequest.imageUrl,
             imageMimeType: maintenanceRequest.imageMimeType,
             imageSize: maintenanceRequest.imageSize,
@@ -213,6 +225,10 @@ class MaintenanceRequestController {
             status: request.status,
             location: request.location,
             flatNumber: request.flatNumber,
+            accountNumber: request.accountNumber,
+            ifsc: request.ifsc,
+            bankName: request.bankName,
+            branchLocation: request.branchLocation,
             imageUrl: request.imageUrl,
             imageMimeType: request.imageMimeType,
             imageSize: request.imageSize,
@@ -292,6 +308,10 @@ class MaintenanceRequestController {
             status: request.status,
             location: request.location,
             flatNumber: request.flatNumber,
+            accountNumber: request.accountNumber,
+            ifsc: request.ifsc,
+            bankName: request.bankName,
+            branchLocation: request.branchLocation,
             imageUrl: request.imageUrl,
             imageMimeType: request.imageMimeType,
             imageSize: request.imageSize,

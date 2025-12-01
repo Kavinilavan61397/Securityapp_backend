@@ -26,9 +26,9 @@ const upload = multer({
 
 // Validation middleware
 const validateMaintenanceRequest = [
+  // Description is now optional
   body('description')
-    .notEmpty()
-    .withMessage('Description is required')
+    .optional()
     .isLength({ min: 1, max: 600 })
     .withMessage('Description must be between 1 and 600 characters')
     .trim(),
@@ -41,6 +41,26 @@ const validateMaintenanceRequest = [
     .optional()
     .isLength({ max: 50 })
     .withMessage('Flat number cannot exceed 50 characters')
+    .trim(),
+  body('accountNumber')
+    .optional()
+    .isLength({ max: 50 })
+    .withMessage('Account number cannot exceed 50 characters')
+    .trim(),
+  body('ifsc')
+    .optional()
+    .isLength({ max: 20 })
+    .withMessage('IFSC cannot exceed 20 characters')
+    .trim(),
+  body('bankName')
+    .optional()
+    .isLength({ max: 100 })
+    .withMessage('Bank name cannot exceed 100 characters')
+    .trim(),
+  body('branchLocation')
+    .optional()
+    .isLength({ max: 200 })
+    .withMessage('Branch location cannot exceed 200 characters')
     .trim()
 ];
 

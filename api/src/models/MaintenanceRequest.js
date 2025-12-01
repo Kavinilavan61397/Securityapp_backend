@@ -27,7 +27,7 @@ const maintenanceRequestSchema = new mongoose.Schema({
   // Maintenance Details
   description: {
     type: String,
-    required: [true, 'Description is required'],
+    required: false,
     trim: true,
     maxlength: [600, 'Description cannot exceed 600 characters']
   },
@@ -77,6 +77,31 @@ const maintenanceRequestSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxlength: [50, 'Flat number cannot exceed 50 characters']
+  },
+
+  // Optional bank/payment details
+  accountNumber: {
+    type: String,
+    trim: true,
+    maxlength: [50, 'Account number cannot exceed 50 characters']
+  },
+
+  ifsc: {
+    type: String,
+    trim: true,
+    maxlength: [20, 'IFSC cannot exceed 20 characters']
+  },
+
+  bankName: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Bank name cannot exceed 100 characters']
+  },
+
+  branchLocation: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Branch location cannot exceed 200 characters']
   },
 
   // Admin Notes

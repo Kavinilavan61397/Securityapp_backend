@@ -2,6 +2,58 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 const BlockedUser = require('../models/BlockedUser');
 const { uploadMultipleToS3, isS3Configured, deleteFromS3 } = require('../services/s3Service');
+const path = require('path');
+
+// Helper function to process images and convert disk paths to URLs
+const processPostImages = (post, req) => {
+  const processedPost = post.toObject ? post.toObject() : { ...post };
+  
+  if (processedPost.images && processedPost.images.length > 0) {
+    processedPost.images = processedPost.images.map(img => {
+      // If S3 storage, return the S3 URL
+      if (img.storage === 's3' && img.s3Url) {
+        return {
+          filename: img.filename,
+          mimetype: img.mimetype,
+          size: img.size,
+          storage: img.storage,
+          url: img.s3Url,
+          s3Key: img.s3Key,
+          originalName: img.originalName
+        };
+      }
+      
+      // For disk storage, convert path to accessible URL
+      if (img.storage === 'disk' && img.path) {
+        const filename = path.basename(img.path);
+        const baseUrl = process.env.BASE_URL || (req ? `${req.protocol}://${req.get('host')}` : 'http://localhost:5000');
+        const imageUrl = `${baseUrl}/api/uploads/posts/${filename}`;
+        
+        return {
+          filename: img.filename,
+          mimetype: img.mimetype,
+          size: img.size,
+          storage: img.storage,
+          url: imageUrl,
+          path: img.path
+        };
+      }
+      
+      // For memory storage
+      return {
+        filename: img.filename,
+        mimetype: img.mimetype,
+        size: img.size,
+        storage: img.storage,
+        hasData: !!img.data,
+        dataSize: img.data ? img.data.length : 0,
+        path: img.path
+      };
+    });
+  }
+  
+  return processedPost;
+};
 
 // Create a new post
 const createPost = async (req, res) => {
@@ -272,40 +324,7 @@ const getAllPosts = async (req, res) => {
     }
 
     // Process posts to return image URLs (S3 URLs preferred, fallback to metadata)
-    const processedPosts = posts.map(post => {
-      const processedPost = { ...post };
-      
-      // Process images to return URLs or metadata
-      if (processedPost.images && processedPost.images.length > 0) {
-        processedPost.images = processedPost.images.map(img => {
-          // If S3 storage, return the S3 URL
-          if (img.storage === 's3' && img.s3Url) {
-            return {
-              filename: img.filename,
-              mimetype: img.mimetype,
-              size: img.size,
-              storage: img.storage,
-              url: img.s3Url, // Public S3 URL for frontend
-              s3Key: img.s3Key,
-              originalName: img.originalName
-            };
-          }
-          // For memory/disk storage, exclude base64 data but include metadata
-          return {
-            filename: img.filename,
-            mimetype: img.mimetype,
-            size: img.size,
-            storage: img.storage,
-            // Exclude large base64 data
-            hasData: !!img.data,
-            dataSize: img.data ? img.data.length : 0,
-            path: img.path // Include path for disk storage
-          };
-        });
-      }
-      
-      return processedPost;
-    });
+    const processedPosts = posts.map(post => processPostImages(post, req));
 
     const responseData = {
       success: true,
@@ -471,9 +490,12 @@ const getPostById = async (req, res) => {
       });
     }
 
+    // Process images to return URLs
+    const processedPost = processPostImages(post, req);
+
     res.status(200).json({
       success: true,
-      post: post
+      post: processedPost
     });
 
   } catch (error) {
@@ -505,9 +527,12 @@ const getMyPosts = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
+    // Process posts to return image URLs
+    const processedPosts = posts.map(post => processPostImages(post, req));
+
     res.status(200).json({
       success: true,
-      posts: posts,
+      posts: processedPosts,
       pagination: {
         currentPage: page,
         totalPages: totalPages,
@@ -548,29 +573,8 @@ const getPostImages = async (req, res) => {
     }
 
     // Process images to return URLs (S3 URLs preferred)
-    const processedImages = (post.images || []).map(img => {
-      // If S3 storage, return the S3 URL
-      if (img.storage === 's3' && img.s3Url) {
-        return {
-          filename: img.filename,
-          mimetype: img.mimetype,
-          size: img.size,
-          storage: img.storage,
-          url: img.s3Url, // Public S3 URL for frontend
-          s3Key: img.s3Key,
-          originalName: img.originalName
-        };
-      }
-      // For memory/disk storage, return full data (this endpoint is for individual post images)
-      return {
-        filename: img.filename,
-        mimetype: img.mimetype,
-        size: img.size,
-        storage: img.storage,
-        data: img.data, // Include base64 for memory storage
-        path: img.path // Include path for disk storage
-      };
-    });
+    const processedPost = processPostImages(post, req);
+    const processedImages = processedPost.images || [];
 
     res.status(200).json({
       success: true,

@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const morgan = require('morgan');
+const path = require('path');
 require('dotenv').config();
 
 // Import database connection
@@ -110,6 +111,13 @@ app.use(compression());
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Static file serving for uploads (only on traditional servers, not Vercel)
+if (process.env.NODE_ENV !== 'production' || process.env.SERVE_STATIC_FILES === 'true') {
+  const uploadsPath = path.join(__dirname, 'uploads');
+  app.use('/api/uploads', express.static(uploadsPath));
+  console.log('📁 Static file serving enabled for uploads:', uploadsPath);
+}
 
 // ========================================
 // ROUTES

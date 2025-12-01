@@ -2,6 +2,7 @@ const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = re
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const crypto = require('crypto');
 const path = require('path');
+const fs = require('fs');
 
 /**
  * AWS S3 Service
@@ -79,18 +80,28 @@ const uploadToS3 = async (fileBuffer, fileName, folder, mimeType) => {
  */
 const uploadMultipleToS3 = async (files, folder) => {
   try {
-    const uploadPromises = files.map((file, index) => {
-      const fileBuffer = file.buffer || Buffer.from(file.data, 'base64');
-      return uploadToS3(
-        fileBuffer,
-        file.originalname || file.filename,
-        folder,
-        file.mimetype
-      ).catch(error => {
-        // Log individual file failures but don't throw
-        console.error(`S3 upload failed for file ${index} (${file.originalname || file.filename}):`, error.message);
+    const uploadPromises = files.map(async (file, index) => {
+      try {
+        const fileBuffer = await getFileBuffer(file);
+        const uploadResult = await uploadToS3(
+          fileBuffer,
+          file.originalname || file.filename,
+          folder,
+          file.mimetype
+        );
+
+        // Clean up temp file from disk storage once uploaded
+        if (file.path) {
+          fs.promises.unlink(file.path).catch(err => {
+            console.warn(`Failed to delete temp file ${file.path}:`, err.message);
+          });
+        }
+
+        return uploadResult;
+      } catch (error) {
+        console.error(`S3 upload failed for file ${index} (${file.originalname || file.filename || 'unknown'}):`, error.message);
         return { error: error.message, fileName: file.originalname || file.filename, index };
-      });
+      }
     });
 
     const results = await Promise.allSettled(uploadPromises);
@@ -183,6 +194,27 @@ const isS3Configured = () => {
     process.env.AWS_S3_BUCKET_NAME &&
     process.env.AWS_REGION
   );
+};
+
+/**
+ * Get a file buffer regardless of storage type
+ * @param {Object} file - Multer file object
+ * @returns {Promise<Buffer>}
+ */
+const getFileBuffer = async (file) => {
+  if (file.buffer) {
+    return file.buffer;
+  }
+
+  if (file.data) {
+    return Buffer.from(file.data, 'base64');
+  }
+
+  if (file.path) {
+    return fs.promises.readFile(file.path);
+  }
+
+  throw new Error('No file buffer, base64 data, or path provided for upload');
 };
 
 module.exports = {

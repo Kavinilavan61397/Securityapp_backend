@@ -6,7 +6,7 @@ const createFlat = async (req, res) => {
   try {
     const { buildingId } = req.params;
     const userId = req.user.id || req.user.userId;
-    const { name, flatNumber, relation, age, phoneNumber } = req.body;
+    const { name, flatNumber, blockNumber, relation, age, phoneNumber } = req.body;
 
     // Verify building exists
     const building = await Building.findById(buildingId);
@@ -36,6 +36,7 @@ const createFlat = async (req, res) => {
     const flat = new Flat({
       name,
       flatNumber,
+      blockNumber,
       relation,
       age,
       phoneNumber,
@@ -52,6 +53,7 @@ const createFlat = async (req, res) => {
         flatId: flat._id,
         name: flat.name,
         flatNumber: flat.flatNumber,
+        blockNumber: flat.blockNumber,
         relation: flat.relation,
         age: flat.age,
         phoneNumber: flat.phoneNumber,
@@ -97,6 +99,7 @@ const getFlats = async (req, res) => {
           _id: flat._id,
           name: flat.name,
           flatNumber: flat.flatNumber,
+          blockNumber: flat.blockNumber,
           relation: flat.relation,
           age: flat.age,
           phoneNumber: flat.phoneNumber,

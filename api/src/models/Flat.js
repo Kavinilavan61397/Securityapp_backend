@@ -16,6 +16,11 @@ const flatSchema = new mongoose.Schema({
   },
 
   // Optional fields
+  blockNumber: {
+    type: String,
+    trim: true,
+    maxlength: [50, 'Block number cannot exceed 50 characters']
+  },
   relation: {
     type: String,
     trim: true,

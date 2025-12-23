@@ -32,6 +32,12 @@ const validateCreateFlat = [
     .trim()
     .isLength({ min: 1, max: 20 })
     .withMessage('Flat number must be between 1 and 20 characters'),
+
+  body('blockNumber')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Block number cannot exceed 50 characters'),
   
   body('relation')
     .optional()
